@@ -3,7 +3,6 @@
 VoiceKhata is a production-level, voice-driven credit ledger web application built with **AngularJS (1.8)**, **Django REST Framework (DRF)**, **PostgreSQL**, **JWT Authentication**, and **Google Gemini AI English Speech Parsing**.
 
 ---
-
 ## 🌟 Table of Contents
 1. [Project Overview](#-project-overview)
 2. [Technology Stack](#-technology-stack)
