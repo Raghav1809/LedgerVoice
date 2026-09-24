@@ -25,7 +25,7 @@ class Transaction(models.Model):
     customer_name_raw = models.CharField(max_length=150, blank=True, null=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES, default='credit')
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default=timezone.localdate)
     due_date = models.DateField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed')

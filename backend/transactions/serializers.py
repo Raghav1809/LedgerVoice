@@ -43,7 +43,14 @@ class TransactionSerializer(serializers.ModelSerializer):
         customer_name = validated_data.pop('customer_name', None)
         customer_phone = validated_data.pop('customer_phone', None)
         # 'user' is injected by perform_create via serializer.save(user=...)
-        user = validated_data.pop('user', None) or self.context['request'].user
+        from .views import get_request_user, get_local_user
+        req = self.context.get('request')
+        user = validated_data.pop('user', None) or (get_request_user(req) if req else get_local_user())
+        from django.utils import timezone
+        if 'date' in validated_data and hasattr(validated_data['date'], 'date'):
+            validated_data['date'] = validated_data['date'].date()
+        elif 'date' not in validated_data or not validated_data['date']:
+            validated_data['date'] = timezone.localdate()
 
         tx_type = validated_data.get('transaction_type', 'credit')
         is_sales = tx_type == 'sales'
@@ -116,7 +123,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         customer_name = validated_data.pop('customer_name', None)
         customer_phone = validated_data.pop('customer_phone', None)
         validated_data.pop('user', None)  # remove injected user to avoid duplicate kwarg
-        user = self.context['request'].user
+        from .views import get_request_user, get_local_user
+        req = self.context.get('request')
+        user = get_request_user(req) if req else get_local_user()
 
         tx_type = validated_data.get('transaction_type', instance.transaction_type)
         if tx_type != 'sales' and customer_name and not validated_data.get('customer'):

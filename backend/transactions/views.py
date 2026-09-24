@@ -19,6 +19,13 @@ def get_local_user():
     return user
 
 
+def get_request_user(request):
+    """Return authenticated user or fall back to local user for local mode."""
+    if request and hasattr(request, 'user') and request.user.is_authenticated:
+        return request.user
+    return get_local_user()
+
+
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [permissions.AllowAny]
@@ -28,8 +35,8 @@ class TransactionViewSet(viewsets.ModelViewSet):
     ordering = ['-date', '-created_at']
 
     def get_queryset(self):
-        local_user = get_local_user()
-        queryset = Transaction.objects.filter(user=local_user)
+        user = get_request_user(self.request)
+        queryset = Transaction.objects.filter(user=user)
 
         # Filter by customer ID
         customer_id = self.request.query_params.get('customer')
@@ -49,4 +56,5 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=get_local_user())
+        user = get_request_user(self.request)
+        serializer.save(user=user)

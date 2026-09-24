@@ -43,23 +43,28 @@ def convert_inventory_price(inventory_item, requested_unit):
     return inv_price, False
 
 
+from transactions.views import get_request_user
+
+
 class InventoryViewSet(viewsets.ModelViewSet):
     """
     CRUD ViewSet for InventoryItem.
     All operations are scoped to the authenticated user.
     """
     serializer_class = InventoryItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['product_name']
     ordering_fields = ['product_name', 'price', 'created_at', 'updated_at']
     ordering = ['product_name']
 
     def get_queryset(self):
-        return InventoryItem.objects.filter(user=self.request.user)
+        user = get_request_user(self.request)
+        return InventoryItem.objects.filter(user=user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user = get_request_user(self.request)
+        serializer.save(user=user)
 
     @action(detail=False, methods=['get'], url_path='lookup')
     def lookup(self, request):
@@ -77,8 +82,9 @@ class InventoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        user = get_request_user(request)
         item = InventoryItem.objects.filter(
-            user=request.user,
+            user=user,
             product_name__iexact=product_name
         ).first()
 

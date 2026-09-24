@@ -13,7 +13,7 @@ class SpeechParseView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
-    def _enrich_items_with_inventory(self, items):
+    def _enrich_items_with_inventory(self, items, user=None):
         """
         Post-process parsed sales items with inventory price lookup.
         Pricing priority:
@@ -29,14 +29,14 @@ class SpeechParseView(APIView):
             from inventory.views import convert_inventory_price, UNIT_CONVERSIONS
             from transactions.views import get_local_user
 
-            local_user = get_local_user()
+            target_user = user or get_local_user()
 
             for item in items:
                 if item.get('price', 0) > 0 and item.get('total', 0) > 0:
                     item['price_source'] = 'voice'
                 else:
                     inv_item = InventoryItem.objects.filter(
-                        user=local_user,
+                        user=target_user,
                         product_name__iexact=item.get('name', '').strip()
                     ).first()
 
@@ -83,7 +83,9 @@ class SpeechParseView(APIView):
 
         # Enrich sales items with inventory prices
         if parsed_data.get('items') and isinstance(parsed_data['items'], list):
-            parsed_data['items'] = self._enrich_items_with_inventory(parsed_data['items'])
+            from transactions.views import get_request_user
+            user = get_request_user(request)
+            parsed_data['items'] = self._enrich_items_with_inventory(parsed_data['items'], user=user)
 
             # Recalculate total amount from enriched items
             total = sum(

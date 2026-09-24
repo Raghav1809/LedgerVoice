@@ -5,16 +5,20 @@ from django.utils import timezone
 from .models import Reminder
 from .serializers import ReminderSerializer
 
+from transactions.views import get_local_user
+
+
 class ReminderViewSet(viewsets.ModelViewSet):
     serializer_class = ReminderSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'customer__name', 'notes']
     ordering_fields = ['due_date', 'created_at']
     ordering = ['due_date']
 
     def get_queryset(self):
-        queryset = Reminder.objects.filter(user=self.request.user)
+        user = self.request.user if (self.request.user and self.request.user.is_authenticated) else get_local_user()
+        queryset = Reminder.objects.filter(user=user)
         
         # Category filter: today, upcoming, missed
         category = self.request.query_params.get('category')
@@ -30,7 +34,8 @@ class ReminderViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user = self.request.user if (self.request.user and self.request.user.is_authenticated) else get_local_user()
+        serializer.save(user=user)
 
     @action(detail=True, methods=['post'])
     def toggle_complete(self, request, pk=None):
