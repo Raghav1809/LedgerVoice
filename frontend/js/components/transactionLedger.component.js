@@ -221,12 +221,13 @@ app.component('transactionLedger', {
 
     </div>
   `,
-  controller: ['transactionService', 'customerService', 'toastService', '$window', function(transactionService, customerService, toastService, $window) {
+  controller: ['transactionService', 'customerService', 'toastService', '$window', '$location', function(transactionService, customerService, toastService, $window, $location) {
     var ctrl = this;
     ctrl.transactions = [];
     ctrl.customers = [];
     ctrl.searchQuery = '';
-    ctrl.filterType = '';
+    ctrl.filterType = $location.search().type || '';
+    ctrl.filterStatus = $location.search().status || '';
     ctrl.isLoading = false;
     ctrl.editMode = false;
     ctrl.currentTx = {};
@@ -239,8 +240,13 @@ app.component('transactionLedger', {
 
     ctrl.loadTransactions = function() {
       ctrl.isLoading = true;
-      transactionService.getAll(ctrl.filterType, ctrl.searchQuery).then(function(res) {
-        ctrl.transactions = res.data.results || res.data;
+      var params = {};
+      if (ctrl.filterType) params.type = ctrl.filterType;
+      if (ctrl.filterStatus) params.status = ctrl.filterStatus;
+      if (ctrl.searchQuery) params.search = ctrl.searchQuery;
+
+      transactionService.getAll(params).then(function(res) {
+        ctrl.transactions = res.data.results || res.data || [];
         ctrl.isLoading = false;
       }, function(err) {
         toastService.danger('Failed to load transactions');
@@ -250,7 +256,7 @@ app.component('transactionLedger', {
 
     ctrl.loadCustomers = function() {
       customerService.getAll().then(function(res) {
-        ctrl.customers = res.data.results || res.data;
+        ctrl.customers = res.data.results || res.data || [];
       });
     };
 

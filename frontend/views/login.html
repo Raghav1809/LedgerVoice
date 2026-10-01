@@ -1,0 +1,559 @@
+<!-- ============================================================
+     LOGIN PAGE — Split Screen: Brand Left | Form Right
+     LedgerVoice v7.1
+============================================================ -->
+<div class="lv-auth-page">
+
+  <!-- ── LEFT PANEL: Brand & Features ─────────────────────── -->
+  <div class="lv-auth-left d-none d-lg-flex">
+    <!-- Decorative Orbs -->
+    <div class="lv-orb lv-orb-1"></div>
+    <div class="lv-orb lv-orb-2"></div>
+    <div class="lv-orb lv-orb-3"></div>
+
+    <div class="lv-auth-left-content">
+      <!-- Logo -->
+      <div class="lv-brand mb-5">
+        <div class="lv-brand-icon mb-3">
+          <i class="fa-solid fa-microphone-lines"></i>
+        </div>
+        <h1 class="lv-brand-name">LedgerVoice</h1>
+        <p class="lv-brand-tagline">Voice-Powered Business Accounting</p>
+      </div>
+
+      <!-- Feature List -->
+      <div class="lv-features">
+        <div class="lv-feature-item">
+          <div class="lv-feature-icon">
+            <i class="fa-solid fa-microphone"></i>
+          </div>
+          <div>
+            <div class="lv-feature-title">Record by Voice</div>
+            <div class="lv-feature-desc">Speak naturally — "Rahul ne 500 liya" — done</div>
+          </div>
+        </div>
+        <div class="lv-feature-item">
+          <div class="lv-feature-icon">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <div>
+            <div class="lv-feature-title">Instant Insights</div>
+            <div class="lv-feature-desc">Live dashboard with credit, payments & sales</div>
+          </div>
+        </div>
+        <div class="lv-feature-item">
+          <div class="lv-feature-icon">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <div class="lv-feature-title">JWT Secured</div>
+            <div class="lv-feature-desc">Bank-grade token authentication, data is yours</div>
+          </div>
+        </div>
+        <div class="lv-feature-item">
+          <div class="lv-feature-icon">
+            <i class="fa-brands fa-whatsapp"></i>
+          </div>
+          <div>
+            <div class="lv-feature-title">WhatsApp Receipts</div>
+            <div class="lv-feature-desc">Send transaction receipts directly to customers</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Testimonial Card -->
+      <div class="lv-testimonial mt-5">
+        <div class="lv-testimonial-text">
+          "Saved me 2 hours every day. I just speak and it records everything!"
+        </div>
+        <div class="lv-testimonial-author">
+          <div class="lv-testimonial-avatar">RS</div>
+          <div>
+            <div class="lv-testimonial-name">Ramesh Sharma</div>
+            <div class="lv-testimonial-role">General Store Owner, Pune</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL: Login Form ───────────────────────────── -->
+  <div class="lv-auth-right">
+    <div class="lv-auth-form-wrap">
+
+      <!-- Mobile Brand (shown only on small screens) -->
+      <div class="text-center mb-4 d-lg-none">
+        <div class="lv-brand-icon-sm mx-auto mb-2">
+          <i class="fa-solid fa-microphone-lines text-primary fs-3"></i>
+        </div>
+        <h4 class="fw-bold" style="font-family:'Outfit',sans-serif;">LedgerVoice</h4>
+      </div>
+
+      <!-- Form Header -->
+      <div class="lv-form-header">
+        <h2 class="lv-form-title">Welcome back</h2>
+        <p class="lv-form-subtitle">
+          Sign in to your account to continue
+        </p>
+      </div>
+
+      <!-- Error Message -->
+      <div ng-if="errorMessage" class="lv-alert-error anim-fade-up">
+        <i class="fa-solid fa-circle-exclamation me-2"></i>
+        {{ errorMessage }}
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form ng-submit="handleLogin()" novalidate autocomplete="on" class="lv-form">
+
+        <!-- Field: Username -->
+        <div class="lv-field-group">
+          <label class="lv-label" for="li-username">
+            Username or Phone Number
+          </label>
+          <div class="lv-input-wrap">
+            <span class="lv-input-icon">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            <input type="text"
+                   id="li-username"
+                   class="lv-input"
+                   placeholder="e.g. ramesh_sharma or 9876543210"
+                   ng-model="loginData.username"
+                   required
+                   autocomplete="username"
+                   autofocus>
+          </div>
+        </div>
+
+        <!-- Field: Password -->
+        <div class="lv-field-group">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="lv-label mb-0" for="li-password">Password</label>
+          </div>
+          <div class="lv-input-wrap">
+            <span class="lv-input-icon">
+              <i class="fa-solid fa-lock"></i>
+            </span>
+            <input type="{{ showPassword ? 'text' : 'password' }}"
+                   id="li-password"
+                   class="lv-input lv-input-with-toggle"
+                   placeholder="Enter your password"
+                   ng-model="loginData.password"
+                   required
+                   autocomplete="current-password">
+            <button type="button"
+                    class="lv-toggle-btn"
+                    ng-click="togglePassword()"
+                    title="Show/Hide password">
+              <i class="fa-solid" ng-class="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit"
+                id="btn-signin"
+                class="lv-submit-btn"
+                ng-disabled="isLoading">
+          <span ng-if="!isLoading">
+            <i class="fa-solid fa-right-to-bracket me-2"></i>
+            Sign In
+          </span>
+          <span ng-if="isLoading">
+            <i class="fa-solid fa-circle-notch fa-spin me-2"></i>
+            Signing in...
+          </span>
+        </button>
+
+        <!-- Demo Helper -->
+        <button type="button"
+                class="lv-demo-btn w-100 mt-3"
+                ng-click="fillDemoCredentials()">
+          <i class="fa-solid fa-key text-warning me-2"></i>
+          Use Demo Account Credentials
+        </button>
+
+      </form>
+
+      <!-- Divider -->
+      <div class="lv-divider">
+        <span>New to LedgerVoice?</span>
+      </div>
+
+      <!-- Sign Up Link -->
+      <a href="#!/register" class="lv-secondary-btn">
+        <i class="fa-solid fa-user-plus me-2"></i>
+        Create a Free Account
+      </a>
+
+      <!-- Trust Row -->
+      <div class="lv-trust-row">
+        <div class="lv-trust-item">
+          <i class="fa-solid fa-lock"></i>
+          <span>JWT Secured</span>
+        </div>
+        <div class="lv-trust-item">
+          <i class="fa-solid fa-database"></i>
+          <span>PostgreSQL</span>
+        </div>
+        <div class="lv-trust-item">
+          <i class="fa-solid fa-user-shield"></i>
+          <span>Private Data</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Auth Page Styles (scoped) ────────────────────────────── -->
+<style>
+/* ── Layout ─────────────────────────────────────────────────── */
+.lv-auth-page {
+  display: flex;
+  min-height: calc(100vh - 72px);
+}
+
+/* ── Left Brand Panel ─────────────────────────────────────────── */
+.lv-auth-left {
+  flex: 0 0 420px;
+  background: linear-gradient(160deg, #1e40af 0%, #2563eb 45%, #7c3aed 100%);
+  padding: 3rem 2.5rem;
+  position: relative;
+  overflow: hidden;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* Decorative Orbs */
+.lv-orb {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.12;
+  pointer-events: none;
+}
+.lv-orb-1 {
+  width: 320px; height: 320px;
+  background: #93c5fd;
+  top: -80px; right: -80px;
+}
+.lv-orb-2 {
+  width: 200px; height: 200px;
+  background: #a78bfa;
+  bottom: 60px; left: -50px;
+  opacity: 0.18;
+}
+.lv-orb-3 {
+  width: 120px; height: 120px;
+  background: #ffffff;
+  bottom: 30%; right: 30px;
+  opacity: 0.06;
+}
+
+.lv-auth-left-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+}
+
+/* Brand inside left panel */
+.lv-brand-icon {
+  width: 62px; height: 62px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.18);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; color: #fff;
+  backdrop-filter: blur(8px);
+  animation: floatSmooth 3.5s ease-in-out infinite;
+}
+.lv-brand-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2rem; font-weight: 800;
+  color: #fff; letter-spacing: -0.03em; margin: 0;
+}
+.lv-brand-tagline {
+  color: rgba(255,255,255,0.7);
+  font-size: 0.88rem; margin: 0;
+  font-weight: 500;
+}
+
+/* Feature list */
+.lv-features { display: flex; flex-direction: column; gap: 1.25rem; }
+.lv-feature-item {
+  display: flex; align-items: flex-start; gap: 1rem;
+  animation: fadeInLeft 0.5s ease both;
+}
+.lv-feature-item:nth-child(1) { animation-delay: 0.1s; }
+.lv-feature-item:nth-child(2) { animation-delay: 0.2s; }
+.lv-feature-item:nth-child(3) { animation-delay: 0.3s; }
+.lv-feature-item:nth-child(4) { animation-delay: 0.4s; }
+
+.lv-feature-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 0.95rem; flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+.lv-feature-item:hover .lv-feature-icon {
+  background: rgba(255,255,255,0.25);
+  transform: scale(1.1);
+}
+.lv-feature-title {
+  color: #fff; font-weight: 700; font-size: 0.9rem; line-height: 1.3;
+}
+.lv-feature-desc {
+  color: rgba(255,255,255,0.65); font-size: 0.8rem; line-height: 1.4;
+  margin-top: 1px;
+}
+
+/* Testimonial */
+.lv-testimonial {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 14px; padding: 1.25rem;
+  backdrop-filter: blur(10px);
+}
+.lv-testimonial-text {
+  color: rgba(255,255,255,0.9);
+  font-size: 0.88rem; line-height: 1.55;
+  font-style: italic; margin-bottom: 0.85rem;
+}
+.lv-testimonial-author { display: flex; align-items: center; gap: 0.75rem; }
+.lv-testimonial-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 0.8rem;
+}
+.lv-testimonial-name {
+  color: #fff; font-weight: 700; font-size: 0.85rem;
+}
+.lv-testimonial-role {
+  color: rgba(255,255,255,0.6); font-size: 0.75rem;
+}
+
+/* ── Right Form Panel ─────────────────────────────────────────── */
+.lv-auth-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  background: #f8faff;
+}
+
+.lv-auth-form-wrap {
+  width: 100%;
+  max-width: 440px;
+  animation: fadeInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Mobile brand icon */
+.lv-brand-icon-sm {
+  width: 54px; height: 54px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(124,58,237,0.1));
+  border: 1.5px solid rgba(37,99,235,0.2);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Form header */
+.lv-form-header { margin-bottom: 1.75rem; }
+.lv-form-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.85rem; font-weight: 800;
+  color: #0f172a; letter-spacing: -0.025em; margin: 0 0 0.35rem;
+}
+.lv-form-subtitle {
+  color: #64748b; font-size: 0.9rem; margin: 0;
+}
+
+/* Error alert */
+.lv-alert-error {
+  background: #fef2f2;
+  border: 1px solid rgba(220,38,38,0.25);
+  border-left: 4px solid #dc2626;
+  color: #dc2626;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 1.25rem;
+  display: flex; align-items: center;
+}
+
+/* ── Form Fields ───────────────────────────────────────────────── */
+.lv-form { display: flex; flex-direction: column; gap: 0; }
+.lv-field-group { margin-bottom: 1.1rem; }
+
+.lv-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #374151;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.lv-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.lv-input-icon {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.88rem;
+  pointer-events: none;
+  transition: color 0.2s ease;
+  z-index: 2;
+}
+
+.lv-input {
+  width: 100%;
+  padding: 0.8rem 1rem 0.8rem 2.5rem;
+  font-size: 0.95rem;
+  font-family: 'Inter', sans-serif;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.22s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.lv-input::placeholder { color: #94a3b8; font-size: 0.88rem; }
+
+.lv-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+  background: #fff;
+}
+
+.lv-input-wrap:focus-within .lv-input-icon { color: #2563eb; }
+
+.lv-input.lv-input-with-toggle { padding-right: 3rem; }
+
+.lv-toggle-btn {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: #94a3b8; font-size: 0.88rem;
+  padding: 0.25rem; border-radius: 6px;
+  transition: color 0.2s ease;
+  z-index: 2;
+}
+.lv-toggle-btn:hover { color: #2563eb; }
+
+/* Submit button */
+.lv-submit-btn {
+  width: 100%;
+  padding: 0.9rem;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(37,99,235,0.38);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  letter-spacing: 0.01em;
+}
+.lv-submit-btn::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+.lv-submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(37,99,235,0.48);
+}
+.lv-submit-btn:hover::after { left: 100%; }
+.lv-submit-btn:active { transform: translateY(0); }
+.lv-submit-btn:disabled {
+  opacity: 0.72; cursor: not-allowed; transform: none;
+}
+
+/* Demo button */
+.lv-demo-btn {
+  background: none;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 0.83rem;
+  font-weight: 600;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+.lv-demo-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37,99,235,0.04);
+}
+
+/* Divider */
+.lv-divider {
+  display: flex; align-items: center; gap: 1rem;
+  margin: 1.4rem 0;
+  color: #94a3b8; font-size: 0.82rem;
+}
+.lv-divider::before, .lv-divider::after {
+  content: ''; flex: 1; height: 1px; background: #e2e8f0;
+}
+
+/* Secondary CTA */
+.lv-secondary-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  color: #2563eb;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.lv-secondary-btn:hover {
+  border-color: #2563eb;
+  background: rgba(37,99,235,0.04);
+  color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37,99,235,0.12);
+}
+
+/* Trust Row */
+.lv-trust-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 1.5rem; margin-top: 1.4rem;
+}
+.lv-trust-item {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.75rem; color: #94a3b8; font-weight: 600;
+}
+.lv-trust-item i { font-size: 0.7rem; color: #059669; }
+</style>

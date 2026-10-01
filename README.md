@@ -408,3 +408,19 @@ Isolated Component Scope (bindings): Instead of sharing a global $scope, each co
 Controller Encapsulation ($ctrl): Component logic lives in a controller accessible via $ctrl in the template, ensuring predictable data flow without scope variable collisions.
 Lifecycle Hooks: Components hook into $onInit (initialization), $onChanges (reactive updates when parent bindings change), and $onDestroy (cleaning up active streams and listeners).
 Reusability & Separation of Concerns: <transaction-receipt> is reused both immediately after recording a sale and inside history receipt modals.
+
+
+Three layers working together:
+
+jwtInterceptor in 
+
+app.js
+ — An AngularJS HTTP interceptor that automatically attaches Authorization: Bearer <token> to every /api/ request without you having to do anything in each controller.
+
+authService in 
+
+authService.js
+ — Stores access + refresh tokens in localStorage, broadcasts auth:changed events on login/logout, and provides isAuthenticated().
+
+Django SimpleJWT on the backend — /api/auth/login/ validates credentials and returns tokens; every protected endpoint requires IsAuthenticated permission which validates the Bearer token in the Authorization header.
+

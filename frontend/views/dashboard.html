@@ -1,0 +1,342 @@
+<div class="anim-fade-up">
+
+  <!-- ── Dashboard Header ──────────────────────────────────── -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+      <h2 class="fw-bold mb-1" style="font-family:'Outfit',sans-serif; font-size:1.75rem; letter-spacing:-0.025em;">
+        <i class="fa-solid fa-chart-line text-primary me-2"></i>Dashboard
+      </h2>
+      <p class="text-muted mb-0" style="font-size:0.88rem;">
+        Real-time overview of customers, credit balances &amp; recent ledger entries
+      </p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <!-- Live Indicator -->
+      <span class="d-none d-md-flex align-items-center gap-1 badge rounded-pill px-3 py-2"
+            style="background:rgba(5,150,105,0.1); color:#059669; border:1px solid rgba(5,150,105,0.2); font-size:0.8rem;">
+        <span style="width:7px;height:7px;border-radius:50%;background:#059669;display:inline-block;animation:pulseGlow 2s infinite;"></span>
+        Live Data
+      </span>
+      <button class="btn btn-outline-secondary btn-sm rounded-pill px-3"
+              ng-click="loadDashboardData()"
+              ng-disabled="isLoading"
+              title="Refresh data">
+        <i class="fa-solid fa-rotate" ng-class="{'fa-spin': isLoading}"></i>
+        <span class="d-none d-sm-inline ms-1">Refresh</span>
+      </button>
+      <a href="#!/voice" class="btn btn-gradient-blue shadow-sm rounded-pill px-4">
+        <i class="fa-solid fa-microphone me-2"></i>Voice Record
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Loading State ─────────────────────────────────────── -->
+  <div ng-if="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status" style="width:2.5rem;height:2.5rem;">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="text-muted mt-3 small">Loading dashboard metrics...</p>
+  </div>
+
+  <!-- ── Main Content ──────────────────────────────────────── -->
+  <div ng-if="!isLoading">
+
+    <!-- ── KPI Metric Cards ───────────────────────────────── -->
+    <div class="row g-3 mb-4">
+
+      <!-- Total Customers -->
+      <div class="col-6 col-xl anim-fade-up delay-1">
+        <div class="metric-card cursor-pointer" ng-click="filterTransactions()" title="View all transactions">
+          <div class="metric-icon metric-icon-blue">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div>
+            <h3 class="metric-val text-primary">{{ summary.total_customers || 0 }}</h3>
+            <span class="metric-lbl">Total Customers</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Credit -->
+      <div class="col-6 col-xl anim-fade-up delay-2">
+        <div class="metric-card cursor-pointer" ng-click="filterTransactions('credit')" title="Filter by credit">
+          <div class="metric-icon metric-icon-amber">
+            <i class="fa-solid fa-hand-holding-dollar"></i>
+          </div>
+          <div>
+            <h3 class="metric-val" style="color:#d97706;">₹{{ (summary.total_credit || 0) | number:2 }}</h3>
+            <span class="metric-lbl">Credit (Gave)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Payments -->
+      <div class="col-6 col-xl anim-fade-up delay-3">
+        <div class="metric-card cursor-pointer" ng-click="filterTransactions('payment')" title="Filter by payments">
+          <div class="metric-icon metric-icon-green">
+            <i class="fa-solid fa-money-bill-trend-up"></i>
+          </div>
+          <div>
+            <h3 class="metric-val text-success">₹{{ (summary.total_payments || 0) | number:2 }}</h3>
+            <span class="metric-lbl">Payments (Got)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Sales -->
+      <div class="col-6 col-xl anim-fade-up delay-4">
+        <div class="metric-card cursor-pointer" ng-click="filterTransactions('sales')" title="Filter by sales">
+          <div class="metric-icon metric-icon-cyan">
+            <i class="fa-solid fa-cart-shopping"></i>
+          </div>
+          <div>
+            <h3 class="metric-val" style="color:var(--accent-cyan);">₹{{ (summary.total_sales || 0) | number:2 }}</h3>
+            <span class="metric-lbl">Total Sales</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending Balance -->
+      <div class="col-6 col-xl anim-fade-up delay-5">
+        <div class="metric-card cursor-pointer" ng-click="filterTransactions('credit','pending')" title="Pending credits">
+          <div class="metric-icon metric-icon-purple">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+          <div>
+            <h3 class="metric-val text-primary">₹{{ (summary.pending_amount || 0) | number:2 }}</h3>
+            <span class="metric-lbl">Pending Balance</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- /KPI Row -->
+
+    <!-- ── Middle Grid: Quick Actions + Recovery + Transactions ── -->
+    <div class="row g-4 mb-4">
+
+      <!-- Left Column: Quick Actions + Recovery -->
+      <div class="col-lg-4 anim-fade-up delay-2">
+
+        <!-- Quick Actions -->
+        <div class="card-custom p-4 mb-4">
+          <div class="section-header">
+            <h6 class="section-title">
+              <i class="fa-solid fa-bolt text-warning"></i> Quick Actions
+            </h6>
+          </div>
+          <div class="d-grid gap-3">
+            <!-- Voice Record CTA -->
+            <a href="#!/voice"
+               class="quick-action-btn text-decoration-none">
+              <div class="metric-icon metric-icon-blue" style="width:44px;height:44px;font-size:1.1rem;border-radius:12px;">
+                <i class="fa-solid fa-microphone"></i>
+              </div>
+              <div>
+                <div class="fw-bold text-dark" style="font-size:0.93rem;">Speak &amp; Record</div>
+                <small class="text-muted">Record credit/payment by voice</small>
+              </div>
+              <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
+            </a>
+            <!-- View Transactions CTA -->
+            <a href="#!/transactions"
+               class="quick-action-btn text-decoration-none">
+              <div class="metric-icon metric-icon-green" style="width:44px;height:44px;font-size:1.1rem;border-radius:12px;">
+                <i class="fa-solid fa-receipt"></i>
+              </div>
+              <div>
+                <div class="fw-bold text-dark" style="font-size:0.93rem;">View Transactions</div>
+                <small class="text-muted">Search, filter &amp; print receipts</small>
+              </div>
+              <i class="fa-solid fa-chevron-right ms-auto text-muted small"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Credit Recovery Meter -->
+        <div class="card-custom p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="section-title mb-0">
+              <i class="fa-solid fa-shield-halved text-success"></i> Credit Recovery
+            </h6>
+            <span class="badge px-3 py-1 fw-bold rounded-pill"
+                  style="background:rgba(5,150,105,0.1); color:#059669; border:1px solid rgba(5,150,105,0.2); font-size:0.82rem;">
+              {{ getRecoveryPercentage() }}%
+            </span>
+          </div>
+          <div class="recovery-bar-wrap mb-3">
+            <div class="recovery-bar-fill" style="width:{{ getRecoveryPercentage() }}%"></div>
+          </div>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">
+              Recovered: <strong class="text-success">₹{{ (summary.recovered_amount || 0) | number:2 }}</strong>
+            </span>
+            <span class="text-muted">
+              Pending: <strong class="text-warning">₹{{ (summary.pending_amount || 0) | number:2 }}</strong>
+            </span>
+          </div>
+
+          <!-- Mini stat row -->
+          <div class="row g-2 mt-3 pt-3" style="border-top:1px solid var(--border-color);">
+            <div class="col-6 text-center">
+              <div class="fw-bold text-primary" style="font-size:1.1rem;font-family:'Outfit',sans-serif;">
+                {{ summary.total_customers || 0 }}
+              </div>
+              <small class="text-muted" style="font-size:0.72rem;">CUSTOMERS</small>
+            </div>
+            <div class="col-6 text-center" style="border-left:1px solid var(--border-color);">
+              <div class="fw-bold text-warning" style="font-size:1.1rem;font-family:'Outfit',sans-serif;">
+                {{ (summary.total_transactions || (summary.recent_transactions && summary.recent_transactions.length) || 0) }}
+              </div>
+              <small class="text-muted" style="font-size:0.72rem;">TRANSACTIONS</small>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- /Left Column -->
+
+      <!-- Right Column: Recent Transactions Table -->
+      <div class="col-lg-8 anim-fade-up delay-3">
+        <div class="card-custom p-4 h-100">
+          <div class="section-header">
+            <h5 class="section-title">
+              <i class="fa-solid fa-list-check text-primary"></i> Recent Transactions
+            </h5>
+            <a href="#!/transactions" class="btn btn-sm text-primary fw-semibold p-0 text-decoration-none" style="font-size:0.85rem;">
+              View All <i class="fa-solid fa-arrow-right small ms-1"></i>
+            </a>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size:0.9rem;">
+              <thead>
+                <tr style="border-bottom:2px solid var(--border-color);">
+                  <th class="fw-bold text-muted small py-2" style="font-size:0.75rem; letter-spacing:0.05em; text-transform:uppercase;">Customer</th>
+                  <th class="fw-bold text-muted small py-2" style="font-size:0.75rem; letter-spacing:0.05em; text-transform:uppercase;">Type</th>
+                  <th class="fw-bold text-muted small py-2" style="font-size:0.75rem; letter-spacing:0.05em; text-transform:uppercase;">Amount</th>
+                  <th class="fw-bold text-muted small py-2 d-none d-md-table-cell" style="font-size:0.75rem; letter-spacing:0.05em; text-transform:uppercase;">Date</th>
+                  <th class="fw-bold text-muted small py-2" style="font-size:0.75rem; letter-spacing:0.05em; text-transform:uppercase;">Status</th>
+                  <th class="fw-bold text-muted small py-2 text-end" style="font-size:0.75rem; letter-spacing:0.05em; text-transform:uppercase;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Transaction rows -->
+                <tr ng-repeat-start="tx in summary.recent_transactions"
+                    ng-click="tx._showItems = tx.items_data && !tx._showItems ? !tx._showItems : (tx.items_data ? !tx._showItems : false)"
+                    ng-class="{'cursor-pointer': tx.items_data}"
+                    style="transition:all 0.2s ease;">
+                  <td class="fw-semibold py-3">
+                    <span ng-if="tx.items_data" class="text-success d-flex align-items-center gap-1">
+                      <i class="fa-solid fa-cart-shopping"></i>Sales
+                      <span class="badge ms-1"
+                            style="background:rgba(5,150,105,0.1);color:#059669;font-size:0.72rem;padding:0.2rem 0.5rem;border-radius:6px;"
+                            ng-if="tx.items_data.length">{{ tx.items_data.length }} items</span>
+                    </span>
+                    <span ng-if="!tx.items_data">{{ tx.customer_detail.name || tx.customer_name_raw || 'General' }}</span>
+                  </td>
+                  <td>
+                    <span class="badge badge-custom" ng-class="{
+                      'badge-credit':  tx.transaction_type === 'credit',
+                      'badge-payment': tx.transaction_type === 'payment',
+                      'badge-sales':   tx.transaction_type === 'sales',
+                      'badge-expense': tx.transaction_type === 'expense'
+                    }">{{ tx.transaction_type | uppercase }}</span>
+                  </td>
+                  <td class="fw-bold" ng-class="{
+                    'text-danger':  tx.transaction_type === 'credit',
+                    'text-success': tx.transaction_type === 'payment' || tx.transaction_type === 'sales'
+                  }">₹{{ tx.amount | number:2 }}</td>
+                  <td class="small text-muted d-none d-md-table-cell">{{ tx.date }}</td>
+                  <td>
+                    <span class="badge rounded-pill"
+                          style="font-size:0.78rem; font-weight:600; padding:0.3rem 0.7rem;"
+                          ng-class="{
+                            'bg-success-subtle text-success': tx.status === 'settled',
+                            'bg-warning-subtle text-warning': tx.status === 'pending'
+                          }">{{ tx.status }}</span>
+                  </td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-light border px-2 me-1"
+                            style="border-radius:8px;"
+                            ng-click="$event.stopPropagation(); viewReceipt(tx)"
+                            title="View Receipt">
+                      <i class="fa-solid fa-receipt text-primary"></i>
+                    </button>
+                    <button class="btn btn-sm btn-light border px-2"
+                            style="border-radius:8px;"
+                            ng-if="tx.transaction_type !== 'expense'"
+                            ng-click="$event.stopPropagation(); sendWhatsApp(tx)"
+                            title="Send WhatsApp">
+                      <i class="fa-brands fa-whatsapp" style="color:#25D366;"></i>
+                    </button>
+                  </td>
+                </tr>
+
+                <!-- Expandable Items Row -->
+                <tr ng-repeat-end ng-if="tx.items_data && tx._showItems"
+                    style="background:rgba(5,150,105,0.04);">
+                  <td colspan="6" class="p-3">
+                    <div class="fw-semibold text-success mb-2 small">
+                      <i class="fa-solid fa-list-ul me-1"></i> Sold Items Breakdown
+                    </div>
+                    <table class="table table-sm table-bordered bg-white mb-0" style="max-width:520px; font-size:0.85rem;">
+                      <thead class="table-light">
+                        <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Price (₹)</th><th>Total (₹)</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr ng-repeat="item in tx.items_data">
+                          <td class="fw-medium">{{ item.name }}</td>
+                          <td>{{ item.qty }}</td>
+                          <td>{{ item.unit }}</td>
+                          <td>₹{{ item.price | number:2 }}</td>
+                          <td class="fw-bold text-success">₹{{ (item.total || (item.qty * item.price)) | number:2 }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Empty State -->
+                <tr ng-if="!summary.recent_transactions || summary.recent_transactions.length === 0">
+                  <td colspan="6" class="text-center py-5">
+                    <div class="mb-3" style="font-size:3rem; opacity:0.25;">
+                      <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <p class="text-muted mb-2 fw-semibold">No recent transactions found</p>
+                    <a href="#!/voice" class="btn btn-gradient-blue btn-sm px-4 rounded-pill">
+                      <i class="fa-solid fa-microphone me-1"></i> Record Your First Transaction
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- /Right Column -->
+
+    </div>
+    <!-- /Middle Grid -->
+
+  </div>
+  <!-- /Main Content -->
+
+  <!-- ── Dashboard Receipt Modal ────────────────────────────── -->
+  <div class="modal fade" id="dashboardReceiptModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:620px;">
+      <div class="modal-content border-0 shadow-lg" style="border-radius:20px; overflow:hidden;">
+        <div class="modal-header border-0 px-4 pt-4 pb-2" style="background:#f8fafc;">
+          <h5 class="modal-title fw-bold" style="font-family:'Outfit',sans-serif;">
+            <i class="fa-solid fa-receipt text-primary me-2"></i>Transaction Receipt
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0">
+          <transaction-receipt transaction="selectedReceiptTx" on-reset="closeReceiptModal()"></transaction-receipt>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
