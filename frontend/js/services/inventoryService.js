@@ -1,84 +1,97 @@
-app.factory('inventoryService', ['$q', function($q) {
-  var STORAGE_KEY = 'ledgervoice_inventory';
+app.factory('inventoryService', ['apiService', '$q', function(apiService, $q) {
+  var cachedItems = [];
 
-  // Seed default catalog if empty
-  var defaultCatalog = [
-    { name: 'Sugar', unit: 'kg', price: 45, quantity: 50.0 },
-    { name: 'Oil', unit: 'litre', price: 120, quantity: 30.0 },
-    { name: 'Rice', unit: 'kg', price: 60, quantity: 100.0 },
-    { name: 'Wheat', unit: 'kg', price: 40, quantity: 150.0 }
-  ];
-
-  function getCatalog() {
-    var stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultCatalog));
-      return defaultCatalog;
+  function updateCache(items) {
+    if (Array.isArray(items)) {
+      cachedItems = items;
     }
-    return JSON.parse(stored);
   }
 
-  function saveCatalog(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  function refreshCache() {
+    return apiService.get('/inventory/').then(function(res) {
+      var items = res.data.results || res.data || [];
+      updateCache(items);
+      return items;
+    }).catch(function() {
+      return cachedItems;
+    });
   }
+
+  // Pre-fetch cache immediately when service initializes
+  refreshCache();
 
   return {
-    getAll: function() {
-      var deferred = $q.defer();
-      deferred.resolve({ data: getCatalog() });
-      return deferred.promise;
-    },
+    refreshCache: refreshCache,
     
+    getCachedItems: function() {
+      return cachedItems;
+    },
+
+    getAll: function(params) {
+      return apiService.get('/inventory/', params).then(function(res) {
+        if (!params || Object.keys(params).length === 0) {
+          updateCache(res.data.results || res.data || []);
+        }
+        return res;
+      });
+    },
+
+    getById: function(id) {
+      return apiService.get('/inventory/' + id + '/');
+    },
+
+    create: function(data) {
+      return apiService.post('/inventory/', data).then(function(res) {
+        refreshCache();
+        return res;
+      });
+    },
+
+    update: function(id, data) {
+      return apiService.put('/inventory/' + id + '/', data).then(function(res) {
+        refreshCache();
+        return res;
+      });
+    },
+
+    delete: function(id) {
+      return apiService.delete('/inventory/' + id + '/').then(function(res) {
+        refreshCache();
+        return res;
+      });
+    },
+
+    lookup: function(productName, unit) {
+      var params = { product: productName };
+      if (unit) params.unit = unit;
+      return apiService.get('/inventory/lookup/', params);
+    },
+
     findByName: function(name) {
       if (!name) return null;
-      var catalog = getCatalog();
       var normalized = name.trim().toLowerCase();
-      
-      // Match exact or contains case-insensitive
-      return catalog.find(function(item) {
-        return item.name.toLowerCase() === normalized;
+      return cachedItems.find(function(item) {
+        var pName = (item.product_name || item.name || '').trim().toLowerCase();
+        return pName === normalized;
       }) || null;
     },
 
     updateStock: function(name, qtySold) {
-      var catalog = getCatalog();
-      var normalized = name.trim().toLowerCase();
-      var found = false;
-
-      for (var i = 0; i < catalog.length; i++) {
-        if (catalog[i].name.toLowerCase() === normalized) {
-          catalog[i].quantity = Math.max(0, catalog[i].quantity - parseFloat(qtySold));
-          found = true;
-          break;
-        }
-      }
-
-      if (found) {
-        saveCatalog(catalog);
-      }
-      return found;
-    },
-
-    createOrUpdate: function(itemData) {
-      var catalog = getCatalog();
-      var normalized = itemData.name.trim().toLowerCase();
-      var index = catalog.findIndex(function(item) {
-        return item.name.toLowerCase() === normalized;
-      });
-
-      if (index !== -1) {
-        catalog[index].unit = itemData.unit || catalog[index].unit;
-        catalog[index].price = parseFloat(itemData.price) || catalog[index].price;
-        catalog[index].quantity = parseFloat(itemData.quantity) || catalog[index].quantity;
-      } else {
-        catalog.push({
-          name: itemData.name.trim(),
-          unit: itemData.unit || 'pcs',
-          price: parseFloat(itemData.price) || 0,
-          quantity: parseFloat(itemData.quantity) || 0
+      var item = this.findByName(name);
+      if (item && item.id) {
+        var currentQty = parseFloat(item.quantity) || 0;
+        var newQty = Math.max(0, currentQty - (parseFloat(qtySold) || 0));
+        var payload = {
+          product_name: item.product_name,
+          unit: item.unit,
+          price: item.price,
+          quantity: newQty
+        };
+        return apiService.put('/inventory/' + item.id + '/', payload).then(function() {
+          refreshCache();
         });
       }
-      saveCatalog(catalog);
+      return $q.resolve();
     }
   };
 }]);

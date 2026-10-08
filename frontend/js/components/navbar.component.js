@@ -55,6 +55,24 @@ app.component('appNavbar', {
               </a>
             </li>
 
+            <li class="nav-item">
+              <a class="nav-link nav-link-custom"
+                 ng-class="{'active': $ctrl.isActive('/inventory')}"
+                 href="#!/inventory">
+                <i class="fa-solid fa-boxes-stacked me-1" style="font-size:0.85rem;"></i>
+                Inventory
+              </a>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link nav-link-custom"
+                 ng-class="{'active': $ctrl.isActive('/reminders')}"
+                 href="#!/reminders">
+                <i class="fa-solid fa-bell me-1" style="font-size:0.85rem;"></i>
+                Reminders
+              </a>
+            </li>
+
           </ul>
 
           <!-- Right: Auth Controls -->

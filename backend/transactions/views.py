@@ -57,4 +57,47 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = get_request_user(self.request)
-        serializer.save(user=user)
+        instance = serializer.save(user=user)
+
+        # Auto-create reminder for credit/udhaar transactions — uses get_or_create to prevent duplicates
+        try:
+            if instance.customer and instance.transaction_type == 'credit':
+                from reminders.models import Reminder
+                from django.utils import timezone
+
+                due = instance.due_date if instance.due_date else (instance.date or timezone.localdate())
+                title = f"Due: {instance.description[:40]}" if instance.description else f"Credit Due from {instance.customer.name}"
+
+                Reminder.objects.get_or_create(
+                    user=user,
+                    customer=instance.customer,
+                    amount=instance.amount,
+                    due_date=due,
+                    defaults={
+                        'title': title,
+                        'status': 'pending',
+                        'notes': f"Auto-synced from credit transaction #{instance.id}."
+                    }
+                )
+            elif instance.customer and instance.transaction_type == 'payment':
+                # Mark oldest pending reminders as completed based on payment amount
+                from reminders.models import Reminder
+                pending = Reminder.objects.filter(
+                    user=user,
+                    customer=instance.customer,
+                    status='pending'
+                ).order_by('due_date')
+
+                remaining = float(instance.amount)
+                for rem in pending:
+                    if remaining <= 0:
+                        break
+                    if remaining >= float(rem.amount):
+                        remaining -= float(rem.amount)
+                        rem.status = 'completed'
+                        rem.save()
+                    else:
+                        break
+        except Exception:
+            pass
+

@@ -1,0 +1,349 @@
+<!-- =====================================================
+     DUE PAYMENT REMINDERS — Premium Customer Ledger Alerts
+     ===================================================== -->
+<div class="animate-fade-up">
+
+  <!-- ── TOP HEADER ────────────────────────────────────────────────── -->
+  <div class="card-custom p-4 mb-4 border-0 position-relative overflow-hidden"
+       style="background: linear-gradient(135deg, rgba(37,99,235,0.09) 0%, rgba(124,58,237,0.06) 100%); border-left: 5px solid var(--primary) !important;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 position-relative" style="z-index: 2;">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1.5 flex-wrap">
+          <span class="badge-custom badge-credit d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="fa-solid fa-bell me-1 text-danger"></i> Due Date &amp; Credit Ledger
+          </span>
+          <span class="badge-custom badge-sales d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="fa-brands fa-whatsapp me-1 text-success fs-6"></i> Instant WhatsApp Dispatch
+          </span>
+          <span class="badge-custom badge-payment d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="fa-solid fa-bolt me-1 text-warning"></i> Auto-Synced
+          </span>
+        </div>
+        <h2 class="fw-extrabold mb-1 text-dark" style="font-family:var(--font-display); letter-spacing:-0.03em;">
+          Payment Reminders &amp; Collections
+        </h2>
+        <p class="text-muted mb-0 small" style="max-width: 680px;">
+          Track customer due dates, manage single &amp; credit transaction reminders, send instant WhatsApp collection messages with payment links, and keep your khata 100% accurate.
+        </p>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <button class="btn btn-outline-primary rounded-pill px-3 py-2 font-semibold shadow-sm d-inline-flex align-items-center gap-1.5"
+                ng-click="loadReminders()">
+          <i class="fa-solid fa-rotate-right me-1"></i> Refresh
+        </button>
+        <button class="btn btn-gradient-blue d-inline-flex align-items-center gap-2 px-4 py-2.5 rounded-pill shadow-sm"
+                id="add-reminder-btn"
+                data-bs-toggle="modal" data-bs-target="#reminderModal"
+                ng-click="openAddModal()">
+          <i class="fa-solid fa-plus-circle"></i> Create New Reminder
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── METRIC SUMMARY CARDS ──────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <!-- Card 1: Today's Due Amount -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card cursor-pointer" ng-click="loadReminders('today')"
+           ng-class="{'border-primary': currentCategory === 'today'}">
+        <div class="metric-icon metric-icon-amber">
+          <i class="fa-solid fa-calendar-day"></i>
+        </div>
+        <div>
+          <div class="metric-val text-amber">₹{{ getTodayDueTotal() | number:0 }}</div>
+          <div class="metric-lbl">Today's Due</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Upcoming Reminders -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card cursor-pointer" ng-click="loadReminders('upcoming')"
+           ng-class="{'border-primary': currentCategory === 'upcoming'}">
+        <div class="metric-icon metric-icon-blue">
+          <i class="fa-solid fa-calendar-week"></i>
+        </div>
+        <div>
+          <div class="metric-val text-primary">{{ getUpcomingCount() }}</div>
+          <div class="metric-lbl">Upcoming Pending</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Overdue / Missed -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card cursor-pointer" ng-click="loadReminders('missed')"
+           ng-class="{'border-danger': getMissedCount() > 0, 'border-primary': currentCategory === 'missed'}">
+        <div class="metric-icon metric-icon-rose" ng-class="{'bg-danger-subtle text-danger': getMissedCount() > 0}">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <div class="metric-val text-rose">₹{{ getMissedTotal() | number:0 }}</div>
+          <div class="metric-lbl">Overdue ({{ getMissedCount() }})</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Total Completed -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card cursor-pointer" ng-click="loadReminders('completed')"
+           ng-class="{'border-primary': currentCategory === 'completed'}">
+        <div class="metric-icon metric-icon-green">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div>
+          <div class="metric-val text-emerald">{{ getCompletedCount() }}</div>
+          <div class="metric-lbl">Settled / Completed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SEARCH & CATEGORY FILTER TABS ──────────────────────────────── -->
+  <div class="card-custom p-3 mb-4">
+    <div class="row g-3 align-items-center">
+      <!-- Search Input -->
+      <div class="col-md-5">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 text-muted">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
+          <input type="text" class="form-control border-start-0 ps-0"
+                 placeholder="Search by customer name, title or amount..."
+                 ng-model="searchQuery">
+        </div>
+      </div>
+
+      <!-- Filter Buttons -->
+      <div class="col-md-7 d-flex flex-wrap align-items-center justify-content-md-end gap-1.5">
+        <button class="btn btn-sm rounded-pill px-3 py-1.5 font-semibold"
+                ng-class="currentCategory === 'all' ? 'btn-primary shadow-sm' : 'btn-light text-muted'"
+                ng-click="loadReminders('all')">
+          <i class="fa-solid fa-list me-1"></i> All
+        </button>
+
+        <button class="btn btn-sm rounded-pill px-3 py-1.5 font-semibold"
+                ng-class="currentCategory === 'today' ? 'btn-warning text-dark shadow-sm' : 'btn-light text-muted'"
+                ng-click="loadReminders('today')">
+          <i class="fa-solid fa-calendar-day me-1"></i> Today
+        </button>
+
+        <button class="btn btn-sm rounded-pill px-3 py-1.5 font-semibold"
+                ng-class="currentCategory === 'upcoming' ? 'btn-primary shadow-sm' : 'btn-light text-muted'"
+                ng-click="loadReminders('upcoming')">
+          <i class="fa-solid fa-calendar-week me-1"></i> Upcoming
+        </button>
+
+        <button class="btn btn-sm rounded-pill px-3 py-1.5 font-semibold"
+                ng-class="currentCategory === 'missed' ? 'btn-danger shadow-sm' : 'btn-light text-muted'"
+                ng-click="loadReminders('missed')">
+          <i class="fa-solid fa-triangle-exclamation me-1"></i> Overdue
+        </button>
+
+        <button class="btn btn-sm rounded-pill px-3 py-1.5 font-semibold"
+                ng-class="currentCategory === 'completed' ? 'btn-success shadow-sm' : 'btn-light text-muted'"
+                ng-click="loadReminders('completed')">
+          <i class="fa-solid fa-check-double me-1"></i> Settled
+        </button>
+
+        <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1.5 small fw-bold ms-md-2">
+          {{ (filteredReminders() || []).length }} Total
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── REMINDERS CARDS GRID ───────────────────────────────────────── -->
+  <div class="row g-4 mb-4">
+
+    <!-- Loading Spinner -->
+    <div class="col-12 text-center py-5" ng-if="isLoading">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted mt-2 small">Loading due reminders...</p>
+    </div>
+
+    <!-- Reminder Item Card -->
+    <div class="col-md-6 col-lg-4" ng-repeat="r in filteredReminders() track by r.id" ng-if="!isLoading">
+      <div class="card-custom h-100 p-4 d-flex flex-column"
+           style="border-top: 4px solid var(--primary); transition: all 0.3s ease;"
+           ng-style="{
+             'border-top-color': (r.computed_status === 'completed' ? '#059669' : (r.computed_status === 'missed' ? '#e11d48' : '#d97706'))
+           }">
+
+        <!-- Top Header: Title & Status -->
+        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+          <h5 class="fw-bold text-dark mb-0 lh-sm" style="font-size: 1.02rem;">{{ r.title }}</h5>
+          <span class="badge-custom flex-shrink-0"
+                ng-class="{
+                  'badge-expense':  r.computed_status === 'pending',
+                  'badge-payment':  r.computed_status === 'completed',
+                  'badge-credit':   r.computed_status === 'missed'
+                }">
+            <i class="fa-solid"
+               ng-class="{
+                 'fa-clock me-1':     r.computed_status === 'pending',
+                 'fa-check me-1':     r.computed_status === 'completed',
+                 'fa-triangle-exclamation me-1': r.computed_status === 'missed'
+               }"></i>
+            {{ r.computed_status | uppercase }}
+          </span>
+        </div>
+
+        <!-- Customer Pill -->
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <div class="user-avatar-circle" style="width:36px; height:36px; font-size:0.9rem; flex-shrink:0; background:rgba(37,99,235,0.1); color:var(--primary); font-weight:700;">
+            {{ (r.customer_detail.name || 'C').charAt(0) | uppercase }}
+          </div>
+          <div class="lh-1">
+            <span class="fw-bold text-dark small" style="font-size: 0.95rem;">{{ r.customer_detail.name || 'Customer' }}</span>
+            <div class="text-muted" style="font-size:0.75rem;" ng-if="r.customer_detail.phone">
+              <i class="fa-solid fa-phone me-1"></i>{{ r.customer_detail.phone }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Amount -->
+        <div class="my-2 p-3 rounded-3" style="background: rgba(37,99,235,0.03); border: 1px solid rgba(37,99,235,0.08);">
+          <small class="text-muted text-uppercase font-semibold d-block" style="font-size:0.68rem; letter-spacing:0.05em;">Pending Amount</small>
+          <div class="fw-extrabold text-dark" style="font-size: 1.95rem; font-family: var(--font-display); letter-spacing:-0.03em; color: var(--text-dark);">
+            ₹{{ r.amount | number:2 }}
+          </div>
+        </div>
+
+        <!-- Notes if present -->
+        <p class="text-muted small mb-3 bg-light p-2 rounded border" style="font-size:0.8rem;" ng-if="r.notes">
+          <i class="fa-regular fa-note-sticky text-muted me-1"></i> {{ r.notes }}
+        </p>
+
+        <!-- Due Date & Days Left Badge -->
+        <div class="d-flex justify-content-between align-items-center mb-3 pt-2 border-top">
+          <div class="text-muted small">
+            <i class="fa-regular fa-calendar-check me-1 text-primary"></i>
+            Due: <strong>{{ r.due_date }}</strong>
+          </div>
+          <span class="badge rounded-pill px-2.5 py-1 fw-bold small"
+                ng-class="{
+                  'bg-danger-subtle text-danger border border-danger-subtle': r.computed_status === 'missed',
+                  'bg-warning-subtle text-dark border border-warning-subtle': r.computed_status === 'pending',
+                  'bg-success-subtle text-success border border-success-subtle': r.computed_status === 'completed'
+                }">
+            {{ getDaysLeft(r.due_date) }}
+          </span>
+        </div>
+
+        <!-- Spacer -->
+        <div class="flex-grow-1"></div>
+
+        <!-- Actions Row -->
+        <div class="d-flex gap-2 mb-2 mt-2">
+          <button class="btn btn-sm w-100 fw-semibold rounded-pill"
+                  ng-class="r.status === 'completed' ? 'btn-light border' : 'btn-primary'"
+                  ng-click="toggleStatus(r)">
+            <i class="fa-solid"
+               ng-class="r.status === 'completed' ? 'fa-rotate-left me-1' : 'fa-check me-1'"></i>
+            {{ r.status === 'completed' ? 'Mark Pending' : 'Mark Completed' }}
+          </button>
+
+          <button class="btn btn-sm btn-outline-danger rounded-circle p-2 flex-shrink-0"
+                  style="width:36px; height:36px;"
+                  ng-click="deleteReminder(r.id)" title="Delete reminder">
+            <i class="fa-solid fa-trash" style="font-size:0.85rem;"></i>
+          </button>
+        </div>
+
+        <!-- Direct WhatsApp Reminder Button -->
+        <button class="btn btn-sm w-100 fw-bold d-flex align-items-center justify-content-center gap-2 rounded-pill shadow-sm"
+                style="background: #25D366; color: #ffffff; border: none; padding: 0.6rem; font-size: 0.88rem; transition: all 0.25s ease;"
+                ng-mouseenter="$event.target.style.background='#20ba5a'"
+                ng-mouseleave="$event.target.style.background='#25D366'"
+                ng-click="sendWhatsApp(r)">
+          <i class="fa-brands fa-whatsapp fs-6"></i> Send WhatsApp Reminder
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="col-12" ng-if="!isLoading && (!filteredReminders() || filteredReminders().length === 0)">
+      <div class="card-custom p-5 text-center">
+        <div class="user-avatar-circle mx-auto mb-3" style="width:64px; height:64px; font-size:1.8rem; background:rgba(37,99,235,0.1); color:var(--primary);">
+          <i class="fa-solid fa-bell-slash"></i>
+        </div>
+        <h5 class="fw-bold text-dark">No Due Reminders Found</h5>
+        <p class="text-muted small mx-auto" style="max-width:420px;">
+          You have no active payment reminders matching this filter. Single transaction reminders and credit entries auto-sync here safely!
+        </p>
+        <button class="btn btn-gradient-blue rounded-pill px-4 mt-2"
+                data-bs-toggle="modal" data-bs-target="#reminderModal"
+                ng-click="openAddModal()">
+          <i class="fa-solid fa-plus me-1"></i> Create New Reminder
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ADD REMINDER MODAL ════════════════════════════════════════════ -->
+  <div class="modal fade" id="reminderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg style-modal">
+        <div class="modal-header border-bottom bg-light">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="fa-solid fa-bell text-primary me-2"></i>Create Payment Reminder
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <form ng-submit="saveReminder()">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Select Customer *</label>
+              <select class="form-select" ng-model="newReminder.customer" required>
+                <option value="">Choose Customer...</option>
+                <option ng-repeat="c in customers" ng-value="c.id">{{ c.name }} {{ c.phone ? ('(' + c.phone + ')') : '' }}</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Reminder Title *</label>
+              <input type="text" class="form-control" ng-model="newReminder.title" required
+                     placeholder="e.g. Udhaar Collection, Payment Due">
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Pending Amount (₹) *</label>
+                <div class="input-group">
+                  <span class="input-group-text fw-bold">₹</span>
+                  <input type="number" step="0.01" min="0.01" class="form-control"
+                         ng-model="newReminder.amount" required placeholder="0.00">
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Due Date *</label>
+                <input type="date" class="form-control" ng-model="newReminder.due_date" required>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Notes <span class="text-muted fw-normal">(optional)</span></label>
+              <textarea class="form-control" rows="2" ng-model="newReminder.notes"
+                        placeholder="Additional notes about this due payment"></textarea>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-gradient-blue rounded-pill px-4" ng-disabled="isSaving">
+                <span ng-if="isSaving" class="spinner-border spinner-border-sm me-2"></span>
+                <i class="fa-solid fa-check me-1" ng-if="!isSaving"></i> Save Reminder
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

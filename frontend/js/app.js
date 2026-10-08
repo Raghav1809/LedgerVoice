@@ -31,13 +31,13 @@ app.config(['$routeProvider', '$httpProvider', function ($routeProvider, $httpPr
     .when('/dashboard',    { templateUrl: 'views/dashboard.html',    controller: 'DashboardController' })
     .when('/voice',        { templateUrl: 'views/voice.html',        controller: 'VoiceInputController' })
     .when('/transactions', { templateUrl: 'views/transactions.html', controller: 'TransactionController' })
+    .when('/inventory',    { templateUrl: 'views/inventory.html',    controller: 'InventoryController' })
+    .when('/reminders',    { templateUrl: 'views/reminders.html',    controller: 'ReminderController' })
     .when('/login',        { templateUrl: 'views/login.html',        controller: 'AuthController' })
     .when('/register',     { templateUrl: 'views/register.html',     controller: 'AuthController' })
     // Fallback & legacy redirects
     .when('/customers',  { redirectTo: '/dashboard' })
-    .when('/inventory',  { redirectTo: '/dashboard' })
     .when('/insights',   { redirectTo: '/dashboard' })
-    .when('/reminders',  { redirectTo: '/dashboard' })
     .when('/settings',   { redirectTo: '/dashboard' })
     .when('/',           { redirectTo: '/dashboard' })
     .otherwise(          { redirectTo: '/dashboard' });

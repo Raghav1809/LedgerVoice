@@ -1,0 +1,421 @@
+<!-- =====================================================
+     INVENTORY MANAGEMENT — Premium Product Catalog & Stock
+     ===================================================== -->
+<div class="animate-fade-up">
+
+  <!-- ── TOP HEADER ────────────────────────────────────────────────── -->
+  <div class="card-custom p-4 mb-4 border-0 position-relative overflow-hidden"
+       style="background: linear-gradient(135deg, rgba(124,58,237,0.09) 0%, rgba(37,99,235,0.06) 100%); border-left: 5px solid var(--accent-violet) !important;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 position-relative" style="z-index: 2;">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1.5 flex-wrap">
+          <span class="badge-custom d-inline-flex align-items-center gap-1 shadow-sm" style="background:rgba(124,58,237,0.12); color:var(--accent-violet);">
+            <i class="fa-solid fa-boxes-stacked me-1"></i> Stock &amp; Pricing Catalog
+          </span>
+          <span class="badge-custom badge-sales d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="fa-solid fa-bolt me-1 text-primary"></i> Voice &amp; Sales Connected
+          </span>
+          <span class="badge-custom badge-payment d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="fa-solid fa-check me-1"></i> Auto Price Matching
+          </span>
+        </div>
+        <h2 class="fw-extrabold mb-1 text-dark" style="font-family:var(--font-display); letter-spacing:-0.03em;">
+          Inventory &amp; Product Catalog
+        </h2>
+        <p class="text-muted mb-0 small" style="max-width: 680px;">
+          Configure default product prices &amp; stock quantities. When voice sales omit prices (e.g. <em>"Add 5 kg Sugar for Rahul"</em>), default prices auto-apply and stock decrements automatically!
+        </p>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-purple d-inline-flex align-items-center gap-2 px-3.5 py-2.5 rounded-pill shadow-sm"
+                style="border-color:var(--accent-violet); color:var(--accent-violet); font-weight:600;"
+                ng-click="openVoiceAdd()">
+          <i class="fa-solid fa-microphone text-purple fs-6"></i> Speak &amp; Add Product
+        </button>
+        <button class="btn btn-gradient-blue d-inline-flex align-items-center gap-2 px-4 py-2.5 rounded-pill shadow-sm"
+                data-bs-toggle="modal" data-bs-target="#inventoryFormModal"
+                ng-click="openAddModal()">
+          <i class="fa-solid fa-plus-circle"></i> Add Product Manually
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── METRICS SUMMARY CARDS ──────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <!-- Card 1: Total Products -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card">
+        <div class="metric-icon metric-icon-purple">
+          <i class="fa-solid fa-cubes"></i>
+        </div>
+        <div>
+          <div class="metric-val text-purple">{{ (inventoryItems || []).length }}</div>
+          <div class="metric-lbl">Total Products</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Total Units in Stock -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card">
+        <div class="metric-icon metric-icon-blue">
+          <i class="fa-solid fa-box"></i>
+        </div>
+        <div>
+          <div class="metric-val text-primary">{{ getTotalStockUnits() | number:1 }}</div>
+          <div class="metric-lbl">Total Stock Units</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Low Stock Alert -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card cursor-pointer" ng-click="toggleLowStockFilter()"
+           ng-class="{'border-danger': getLowStockCount() > 0}">
+        <div class="metric-icon metric-icon-amber" ng-class="{'bg-danger-subtle text-danger': getLowStockCount() > 0}">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <div class="metric-val" ng-class="getLowStockCount() > 0 ? 'text-rose' : 'text-amber'">
+            {{ getLowStockCount() }}
+          </div>
+          <div class="metric-lbl">Low Stock (&lt; 5)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Total Inventory Value -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card">
+        <div class="metric-icon metric-icon-green">
+          <i class="fa-solid fa-indian-rupee-sign"></i>
+        </div>
+        <div>
+          <div class="metric-val text-emerald">₹{{ getTotalInventoryValue() | number:0 }}</div>
+          <div class="metric-lbl">Total Catalog Value</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ VOICE ADD PANEL (EXPANDABLE) ══════════════════════════════════ -->
+  <div ng-if="isVoiceMode" class="card-custom p-4 p-md-5 mb-4 animate-fade-down shadow-lg"
+       style="border: 2px dashed var(--accent-violet); background: rgba(124,58,237,0.04);">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center gap-2">
+        <div class="user-avatar-circle" style="background:rgba(124,58,237,0.15); color:var(--accent-violet); width:40px; height:40px; font-size:1.1rem;">
+          <i class="fa-solid fa-microphone"></i>
+        </div>
+        <div>
+          <h5 class="fw-bold mb-0 text-dark">Voice Product Parser</h5>
+          <small class="text-muted">Say: <strong>"Add Sugar 10 kg for ₹450"</strong> or <strong>"Rice 25 kg at ₹60 per kg"</strong></small>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" ng-click="closeVoiceAdd()">
+        <i class="fa-solid fa-xmark me-1"></i> Close
+      </button>
+    </div>
+
+    <!-- Mic Recording Controls -->
+    <div class="text-center my-4">
+      <div class="d-inline-block position-relative">
+        <button type="button" class="mic-btn"
+                ng-class="{'recording': isRecording}"
+                ng-click="toggleVoiceRecording()"
+                style="width:90px; height:90px; font-size:2rem;">
+          <i class="fa-solid" ng-class="isRecording ? 'fa-square' : 'fa-microphone'"></i>
+        </button>
+        <div ng-if="isRecording" class="mic-pulse-ring"></div>
+      </div>
+      <div class="mt-2 fw-bold" style="font-size:0.9rem;" ng-class="isRecording ? 'text-rose' : 'text-muted'">
+        <span ng-if="isRecording"><span class="dot-pulse me-1"></span> Listening... speak product details</span>
+        <span ng-if="!isRecording">Tap microphone to begin speaking</span>
+      </div>
+    </div>
+
+    <!-- Live Speech Transcript -->
+    <textarea class="form-control transcript-box mb-3" rows="2"
+              ng-model="voiceTranscript" ng-disabled="isRecording"
+              placeholder="Your speech transcript will appear here in real-time..."></textarea>
+
+    <div class="d-flex justify-content-end gap-2" ng-if="!showVoiceConfirm">
+      <button type="button" class="btn btn-gradient-blue px-4 rounded-pill"
+              ng-click="parseVoiceInventory()" ng-disabled="!voiceTranscript">
+        <i class="fa-solid fa-wand-magic-sparkles me-2"></i> Extract Product Details
+      </button>
+    </div>
+
+    <!-- Voice Confirmation Card -->
+    <div ng-if="showVoiceConfirm && voiceParsed" class="mt-4 pt-3 border-top">
+      <div class="alert alert-success d-flex align-items-center gap-2 mb-3 py-2">
+        <i class="fa-solid fa-circle-check fs-5"></i>
+        <div><strong>Extracted Product Details!</strong> Please review and adjust before saving to inventory catalog.</div>
+      </div>
+
+      <div class="card-custom p-3 bg-white mb-3 shadow-sm">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small">Product Name</label>
+            <input type="text" class="form-control" ng-model="voiceParsed.product_name">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small">Unit</label>
+            <select class="form-select" ng-model="voiceParsed.unit">
+              <option ng-repeat="u in unitOptions" value="{{u.value}}">{{u.label}}</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small">Stock Quantity</label>
+            <input type="number" step="0.001" min="0.001" class="form-control" ng-model="voiceParsed.quantity">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold small">Default Price (₹)</label>
+            <div class="input-group">
+              <span class="input-group-text fw-bold">₹</span>
+              <input type="number" step="0.01" min="0" class="form-control" ng-model="voiceParsed.price">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-light rounded-pill px-3"
+                ng-click="showVoiceConfirm = false; voiceParsed = null;">Cancel</button>
+        <button type="button" class="btn btn-gradient-blue rounded-pill px-4"
+                ng-click="confirmVoiceAdd()" ng-disabled="isSaving">
+          <span ng-if="isSaving" class="spinner-border spinner-border-sm me-2"></span>
+          <i class="fa-solid fa-check me-1" ng-if="!isSaving"></i> Confirm &amp; Save Product
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SEARCH & FILTER BAR ─────────────────────────────────────────── -->
+  <div class="card-custom p-3 mb-4">
+    <div class="row g-3 align-items-center">
+      <div class="col-md-5">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="fa-solid fa-magnifying-glass text-muted"></i>
+          </span>
+          <input type="text" class="form-control border-start-0 ps-0"
+                 placeholder="Search catalog products by name..."
+                 ng-model="searchQuery" ng-change="onSearchChange()">
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <select class="form-select" ng-model="selectedUnitFilter" ng-change="onSearchChange()">
+          <option value="">All Units</option>
+          <option ng-repeat="u in unitOptions" value="{{u.value}}">{{u.label}}</option>
+        </select>
+      </div>
+
+      <div class="col-md-4 d-flex justify-content-md-end gap-2">
+        <button class="btn btn-sm"
+                ng-class="showLowStockOnly ? 'btn-danger shadow-sm' : 'btn-outline-secondary'"
+                ng-click="toggleLowStockFilter()">
+          <i class="fa-solid fa-filter me-1"></i> Low Stock Only
+        </button>
+        <button class="btn btn-sm btn-outline-primary" ng-click="loadInventory()">
+          <i class="fa-solid fa-rotate me-1"></i> Refresh Catalog
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ INVENTORY PRODUCTS TABLE ══════════════════════════════════════ -->
+  <div class="card-custom p-0 overflow-hidden">
+
+    <!-- Loading Spinner -->
+    <div ng-if="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted mt-2 small">Syncing inventory items...</p>
+    </div>
+
+    <!-- Data Table -->
+    <div ng-if="!isLoading && filteredItems().length > 0" class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 5%" class="ps-4">#</th>
+            <th style="width: 28%">Product Details</th>
+            <th style="width: 12%">Unit</th>
+            <th style="width: 25%">Stock Quantity &amp; Quick Adjust</th>
+            <th style="width: 18%">Default Price</th>
+            <th style="width: 12%" class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="item in filteredItems() track by item.id">
+            <td class="ps-4 text-muted fw-semibold small">{{ $index + 1 }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon metric-icon-purple" style="width:42px; height:42px; font-size:1.1rem; border-radius:10px;">
+                  <i class="fa-solid fa-box"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-dark fs-6">{{ item.product_name }}</div>
+                  <small class="text-muted">Catalog Item #{{ item.id }}</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="badge-custom badge-sales text-uppercase font-semibold">{{ item.unit }}</span>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="fw-extrabold fs-6 text-dark" style="font-family: var(--font-display);">{{ item.quantity | number:2 }}</span>
+                <span class="text-muted small">{{ item.unit }}</span>
+                
+                <span ng-if="item.quantity < 5" class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1">
+                  Low Stock
+                </span>
+                <span ng-if="item.quantity >= 5 && item.quantity < 15" class="badge bg-warning-subtle text-dark border border-warning-subtle ms-1">
+                  Medium
+                </span>
+                <span ng-if="item.quantity >= 15" class="badge bg-success-subtle text-success border border-success-subtle ms-1">
+                  In Stock
+                </span>
+              </div>
+              
+              <!-- Quick Stock Adjustment Controls -->
+              <div class="d-flex align-items-center gap-1 mt-1">
+                <button class="btn btn-xs btn-outline-danger px-1.5 py-0 rounded" style="font-size:0.75rem;" ng-click="adjustStock(item, -1)" title="Reduce stock by 1">
+                  <i class="fa-solid fa-minus"></i> 1
+                </button>
+                <button class="btn btn-xs btn-outline-success px-1.5 py-0 rounded" style="font-size:0.75rem;" ng-click="adjustStock(item, +1)" title="Add 1 to stock">
+                  <i class="fa-solid fa-plus"></i> 1
+                </button>
+                <button class="btn btn-xs btn-outline-primary px-1.5 py-0 rounded" style="font-size:0.75rem;" ng-click="adjustStock(item, +5)" title="Add 5 to stock">
+                  <i class="fa-solid fa-plus"></i> 5
+                </button>
+              </div>
+            </td>
+            <td>
+              <div class="fw-bold text-emerald" style="font-size: 1.15rem; font-family: var(--font-display);">
+                ₹{{ item.price | number:2 }}
+              </div>
+              <small class="text-muted">per {{ item.unit }}</small>
+            </td>
+            <td class="text-end pe-4">
+              <div class="d-inline-flex gap-1">
+                <button class="btn btn-sm btn-light border rounded-circle p-2"
+                        style="width:34px; height:34px;"
+                        data-bs-toggle="modal" data-bs-target="#inventoryFormModal"
+                        ng-click="openEditModal(item)" title="Edit Item">
+                  <i class="fa-solid fa-pen text-primary" style="font-size:0.8rem;"></i>
+                </button>
+                <button class="btn btn-sm btn-light border rounded-circle p-2"
+                        style="width:34px; height:34px;"
+                        ng-click="deleteItem(item)" title="Delete Item">
+                  <i class="fa-solid fa-trash text-danger" style="font-size:0.8rem;"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div ng-if="!isLoading && filteredItems().length === 0" class="text-center py-5 px-3">
+      <div class="user-avatar-circle mx-auto mb-3" style="width:64px; height:64px; font-size:1.8rem; background:rgba(124,58,237,0.1); color:var(--accent-violet);">
+        <i class="fa-solid fa-box-open"></i>
+      </div>
+      <h5 class="fw-bold text-dark">No Products Found</h5>
+      <p class="text-muted small mx-auto" style="max-width:420px;">
+        No products match your search or filter criteria. Add commonly sold items with default prices for instant voice sales lookup and stock auto-deduction!
+      </p>
+      <div class="d-flex justify-content-center gap-2 mt-3">
+        <button class="btn btn-gradient-blue rounded-pill px-4"
+                data-bs-toggle="modal" data-bs-target="#inventoryFormModal"
+                ng-click="openAddModal()">
+          <i class="fa-solid fa-plus me-1"></i> Add Product
+        </button>
+        <button class="btn btn-outline-purple rounded-pill px-4" ng-click="openVoiceAdd()">
+          <i class="fa-solid fa-microphone me-1"></i> Add by Voice
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ADD/EDIT INVENTORY MODAL ════════════════════════════════════════ -->
+  <div class="modal fade" id="inventoryFormModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg style-modal">
+        <div class="modal-header border-bottom bg-light">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="fa-solid fa-box text-purple me-2"></i>
+            {{ editMode ? 'Edit Product Details' : 'Add New Product to Catalog' }}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <form ng-submit="saveItem()">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Product Name *</label>
+              <input type="text" class="form-control"
+                     ng-model="formItem.product_name" required
+                     placeholder="e.g. Sugar, Oil, Rice, Wheat">
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Unit *</label>
+                <select class="form-select" ng-model="formItem.unit" required>
+                  <option ng-repeat="u in unitOptions" value="{{u.value}}">{{u.label}}</option>
+                </select>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Stock Quantity *</label>
+                <input type="number" step="0.001" min="0.001" class="form-control"
+                       ng-model="formItem.quantity" required placeholder="e.g. 10.0">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Default Price (₹) *</label>
+                <div class="input-group">
+                  <span class="input-group-text fw-bold">₹</span>
+                  <input type="number" step="0.01" min="0" class="form-control"
+                         ng-model="formItem.price" required placeholder="0.00">
+                </div>
+              </div>
+            </div>
+
+            <!-- Value Preview Banner -->
+            <div class="p-3 rounded-3 mb-4"
+                 style="background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.15);"
+                 ng-if="formItem.product_name && formItem.price >= 0">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2" style="font-size:0.88rem;">
+                <div>
+                  <i class="fa-solid fa-eye text-primary me-1"></i>
+                  <strong class="text-dark">{{ formItem.product_name }}</strong>
+                  <span class="text-muted">({{ formItem.quantity || 0 }} {{ formItem.unit }})</span>
+                </div>
+                <div>
+                  <span class="text-muted">Total Stock Value:</span>
+                  <strong class="text-emerald ms-1">₹{{ (formItem.quantity * formItem.price) | number:2 }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-gradient-blue rounded-pill px-4" ng-disabled="isSaving">
+                <span ng-if="isSaving" class="spinner-border spinner-border-sm me-2"></span>
+                <i class="fa-solid fa-check me-1" ng-if="!isSaving"></i>
+                {{ editMode ? 'Update Product' : 'Save Product' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

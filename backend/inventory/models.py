@@ -35,7 +35,7 @@ class InventoryItem(models.Model):
         unique_together = ('user', 'product_name')
 
     def __str__(self):
-        return f"{self.product_name} — ₹{self.price}/{self.unit} ({self.user.username})"
+        return f"{self.product_name} - Rs.{self.price}/{self.unit} ({self.user.username})"
 
     def save(self, *args, **kwargs):
         # Store product_name in title case for consistency

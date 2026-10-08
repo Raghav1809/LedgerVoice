@@ -119,6 +119,7 @@ GRANT ALL PRIVILEGES ON DATABASE voicekhata_db TO postgres;
 
 ---
 
+
 ## ⚙️ Backend Setup (Django + DRF)
 
 ### Step 1: Navigate to Backend Directory

@@ -103,20 +103,6 @@ class TransactionSerializer(serializers.ModelSerializer):
                     credit_tx.save()
                     remaining_payment -= credit_amt
 
-        # Auto-create reminder if due_date is present
-        if transaction.due_date and transaction.customer:
-            from reminders.models import Reminder
-            Reminder.objects.get_or_create(
-                user=user,
-                customer=transaction.customer,
-                due_date=transaction.due_date,
-                defaults={
-                    'title': f"Payment Due from {transaction.customer.name}",
-                    'amount': transaction.amount,
-                    'notes': f"Auto-created from transaction #{transaction.id}: {transaction.description or 'Due payment'}"
-                }
-            )
-
         return transaction
 
     def update(self, instance, validated_data):

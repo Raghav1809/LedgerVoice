@@ -5,7 +5,7 @@ from django.utils import timezone
 from .models import Reminder
 from .serializers import ReminderSerializer
 
-from transactions.views import get_local_user
+from transactions.views import get_request_user
 
 
 class ReminderViewSet(viewsets.ModelViewSet):
@@ -17,7 +17,7 @@ class ReminderViewSet(viewsets.ModelViewSet):
     ordering = ['due_date']
 
     def get_queryset(self):
-        user = self.request.user if (self.request.user and self.request.user.is_authenticated) else get_local_user()
+        user = get_request_user(self.request)
         queryset = Reminder.objects.filter(user=user)
         
         # Category filter: today, upcoming, missed
@@ -34,7 +34,24 @@ class ReminderViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        user = self.request.user if (self.request.user and self.request.user.is_authenticated) else get_local_user()
+        user = get_request_user(self.request)
+        customer = serializer.validated_data.get('customer')
+        title = serializer.validated_data.get('title')
+        amount = serializer.validated_data.get('amount')
+        due_date = serializer.validated_data.get('due_date')
+
+        # Prevent creating exact duplicate pending reminders for the same user, customer, amount, and due date
+        existing = Reminder.objects.filter(
+            user=user,
+            customer=customer,
+            amount=amount,
+            due_date=due_date,
+            status='pending'
+        ).first()
+
+        if existing:
+            # If an exact match exists, don't insert a second duplicate row
+            return
         serializer.save(user=user)
 
     @action(detail=True, methods=['post'])

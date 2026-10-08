@@ -33,7 +33,11 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Case-insensitive duplicate check scoped to the authenticated user."""
-        user = self.context['request'].user
+        from transactions.views import get_request_user
+        request = self.context.get('request')
+        user = get_request_user(request) if request else None
+        if not user:
+            return attrs
         product_name = attrs.get('product_name', '').strip().title()
 
         # Check for duplicate product name (case-insensitive) for this user
@@ -54,5 +58,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = validated_data.pop('user', None) or self.context['request'].user
+        from transactions.views import get_request_user
+        request = self.context.get('request')
+        user = validated_data.pop('user', None) or (get_request_user(request) if request else None)
         return InventoryItem.objects.create(user=user, **validated_data)
