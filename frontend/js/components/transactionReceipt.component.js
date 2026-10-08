@@ -1,49 +1,52 @@
 /**
- * transactionReceipt.component.js - Modern Transaction Receipt Component
+ * transactionReceipt.component.js - Compact Single-Screen Transaction Receipt Component
  * Displays itemized receipt breakdown with items sold, quantities, rates,
- * individual totals, grand sum total, and WhatsApp/Print actions.
+ * individual totals, grand sum total, and WhatsApp/Print actions on a single screen without scrolling.
  */
 app.component('transactionReceipt', {
   bindings: {
     transaction: '<',
-    onReset: '&'
+    onReset: '&',
+    isModal: '<'
   },
   template: `
-    <div class="receipt-container animate-fade-in my-3">
-      <!-- Receipt Card -->
-      <div class="card border-0 shadow-lg receipt-card mx-auto" id="printableReceipt" style="max-width: 580px; border-radius: 16px; overflow: hidden;">
+    <div class="receipt-container animate-fade-in my-0">
+      <!-- Single-Screen Ultra-Compact Receipt Card -->
+      <div class="card border-0 shadow-lg receipt-card mx-auto" id="printableReceipt" style="max-width: 580px; border-radius: 14px; overflow: hidden;">
         
-        <!-- Receipt Header Banner -->
-        <div class="bg-gradient-primary text-white p-4 text-center position-relative">
-          <div class="receipt-check-icon mb-2">
-            <i class="fa-solid fa-circle-check text-white fs-1"></i>
+        <!-- Receipt Header Banner (Compact with optional close button) -->
+        <div class="bg-gradient-primary text-white py-2 px-3 text-center position-relative">
+          <button ng-if="$ctrl.isModal" type="button" class="btn-close btn-close-white position-absolute top-50 translate-middle-y end-0 me-3 shadow-none"
+                  ng-click="$ctrl.onReset()" aria-label="Close" style="font-size:0.75rem;"></button>
+          <div class="d-flex align-items-center justify-content-center gap-2">
+            <i class="fa-solid fa-circle-check text-white fs-5"></i>
+            <h6 class="fw-bold mb-0 letter-spacing-1">LedgerVoice Receipt</h6>
+            <span class="badge bg-white text-dark fw-bold px-2 py-0.5 shadow-sm ms-1" style="font-size:0.72rem;">
+              #LV-{{ $ctrl.transaction.id || 'NEW' }}
+            </span>
           </div>
-          <h4 class="fw-bold mb-1 letter-spacing-1">LedgerVoice Receipt</h4>
-          <p class="small text-white-50 mb-0">Official Transaction &amp; Accounting Record</p>
-          <span class="badge bg-white text-dark mt-2 fw-semibold px-3 py-1 shadow-sm">
-            #LV-{{ $ctrl.transaction.id || 'NEW' }}
-          </span>
+          <div class="small text-white-50" style="font-size:0.72rem; line-height:1.2;">Official Transaction &amp; Accounting Record</div>
         </div>
 
-        <!-- Receipt Body -->
-        <div class="card-body p-4 bg-white">
-          <!-- Meta details -->
-          <div class="row g-2 mb-3 pb-3 border-bottom small">
-            <div class="col-6">
-              <span class="text-muted d-block">Customer:</span>
-              <strong class="text-dark fs-6">{{ $ctrl.transaction.customer_name_raw || $ctrl.transaction.customer_name || 'General / Cash Customer' }}</strong>
+        <!-- Receipt Body (Compact Single Screen) -->
+        <div class="card-body p-2.5 bg-white">
+          <!-- Meta details grid -->
+          <div class="row g-1 mb-2 pb-1.5 border-bottom small align-items-center" style="font-size:0.8rem;">
+            <div class="col-6 text-truncate">
+              <span class="text-muted">Customer:</span>
+              <strong class="text-dark ms-1">{{ $ctrl.transaction.customer_name_raw || $ctrl.transaction.customer_name || 'General Customer' }}</strong>
             </div>
             <div class="col-6 text-end">
-              <span class="text-muted d-block">Date:</span>
-              <strong class="text-dark">{{ $ctrl.formatDate($ctrl.transaction.date) }}</strong>
+              <span class="text-muted">Date:</span>
+              <strong class="text-dark ms-1">{{ $ctrl.formatDate($ctrl.transaction.date) }}</strong>
             </div>
-            <div class="col-6" ng-if="$ctrl.transaction.customer_phone">
-              <span class="text-muted d-block">Phone:</span>
-              <strong class="text-dark">{{ $ctrl.transaction.customer_phone }}</strong>
+            <div class="col-6 text-truncate" ng-if="$ctrl.transaction.customer_phone">
+              <span class="text-muted">Phone:</span>
+              <strong class="text-dark ms-1">{{ $ctrl.transaction.customer_phone }}</strong>
             </div>
-            <div class="col-6 text-end">
-              <span class="text-muted d-block">Type:</span>
-              <span class="badge" ng-class="{
+            <div class="col-6 text-end" ng-class="{'col-12': !$ctrl.transaction.customer_phone}">
+              <span class="text-muted">Type:</span>
+              <span class="badge ms-1 py-0.5 px-2" ng-class="{
                 'badge-credit': $ctrl.transaction.transaction_type === 'credit',
                 'badge-payment': $ctrl.transaction.transaction_type === 'payment',
                 'badge-sales': $ctrl.transaction.transaction_type === 'sales',
@@ -53,76 +56,72 @@ app.component('transactionReceipt', {
           </div>
 
           <!-- Itemized Breakdown (If Items Sold) -->
-          <div ng-if="$ctrl.hasItems()" class="mb-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <h6 class="fw-bold text-dark mb-0">
-                <i class="fa-solid fa-cart-flatbed-suitcase me-1 text-primary"></i> Sold Items Breakdown
-              </h6>
-              <span class="badge bg-light text-muted border">{{ $ctrl.getItems().length }} Item(s)</span>
+          <div ng-if="$ctrl.hasItems()" class="mb-2">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="fw-bold text-dark small" style="font-size:0.78rem;">
+                <i class="fa-solid fa-cart-flatbed-suitcase me-1 text-primary"></i> Items Breakdown
+              </span>
+              <span class="badge bg-light text-muted border py-0.5 px-1.5" style="font-size:0.68rem;">{{ $ctrl.getItems().length }} Item(s)</span>
             </div>
 
-            <div class="table-responsive">
-              <table class="table table-sm table-bordered align-middle mb-0 receipt-items-table">
+            <div class="table-responsive" style="max-height: 110px; overflow-y: auto;">
+              <table class="table table-sm table-bordered align-middle mb-0 receipt-items-table" style="font-size:0.78rem;">
                 <thead class="table-light">
-                  <tr class="small text-muted text-uppercase">
-                    <th style="width: 40%">Item</th>
-                    <th style="width: 20%" class="text-center">Qty</th>
-                    <th style="width: 20%" class="text-end">Price</th>
-                    <th style="width: 20%" class="text-end">Total</th>
+                  <tr class="text-muted text-uppercase" style="font-size:0.68rem;">
+                    <th style="width: 45%" class="py-1">Item</th>
+                    <th style="width: 20%" class="text-center py-1">Qty</th>
+                    <th style="width: 15%" class="text-end py-1">Rate</th>
+                    <th style="width: 20%" class="text-end py-1">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr ng-repeat="item in $ctrl.getItems()">
-                    <td class="fw-medium text-dark">{{ item.name }}</td>
-                    <td class="text-center text-muted small">{{ item.qty }} {{ item.unit }}</td>
-                    <td class="text-end text-muted small">₹{{ item.price | number:2 }}</td>
-                    <td class="text-end fw-bold text-dark">₹{{ (item.total || (item.qty * item.price)) | number:2 }}</td>
+                    <td class="fw-medium text-dark py-0.5 text-truncate">{{ item.name }}</td>
+                    <td class="text-center text-muted small py-0.5">{{ item.qty }} {{ item.unit }}</td>
+                    <td class="text-end text-muted small py-0.5">₹{{ item.price | number:2 }}</td>
+                    <td class="text-end fw-bold text-dark py-0.5">₹{{ (item.total || (item.qty * item.price)) | number:2 }}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
 
-          <!-- Total Calculation Section -->
-          <div class="bg-light p-3 rounded-3 mb-3 border">
-            <div class="d-flex justify-content-between align-items-center mb-1 small text-muted">
-              <span>Subtotal:</span>
-              <span>₹{{ $ctrl.transaction.amount | number:2 }}</span>
-            </div>
-            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-              <span class="fw-bold text-dark fs-5">Grand Total:</span>
-              <span class="fw-bold text-success fs-4">₹{{ $ctrl.transaction.amount | number:2 }}</span>
+          <!-- Total Summary Box -->
+          <div class="bg-light py-1.5 px-3 rounded-2 mb-2 border">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="fw-bold text-dark small">Grand Total:</span>
+              <span class="fw-extrabold text-success" style="font-size:1.25rem; font-family:var(--font-display);">₹{{ $ctrl.transaction.amount | number:2 }}</span>
             </div>
           </div>
 
-          <div class="small text-muted fst-italic text-center mb-3" ng-if="$ctrl.transaction.description">
+          <div class="small text-muted fst-italic text-center mb-1.5" style="font-size:0.74rem;" ng-if="$ctrl.transaction.description">
             <i class="fa-solid fa-quote-left me-1"></i> {{ $ctrl.transaction.description }}
           </div>
 
-          <!-- WhatsApp Share Section -->
-          <div class="pt-3 border-top no-print">
-            <label class="form-label fw-bold small text-muted">
-              <i class="fa-brands fa-whatsapp text-success me-1"></i> Send Itemized Receipt via WhatsApp
-            </label>
-            <div class="input-group">
-              <input type="text" class="form-control" ng-model="$ctrl.phoneInput" placeholder="Recipient WhatsApp number (e.g. 919876543210)">
-              <button class="btn btn-success px-3" type="button" ng-click="$ctrl.shareWhatsApp()" ng-disabled="!$ctrl.phoneInput">
-                <i class="fa-solid fa-paper-plane me-1"></i> Send
-              </button>
+          <!-- WhatsApp Direct Share Bar -->
+          <div class="pt-1.5 border-top no-print mb-1">
+            <div class="row g-1.5 align-items-center">
+              <div class="col-7">
+                <input type="text" class="form-control form-control-sm py-1" style="font-size:0.8rem;" ng-model="$ctrl.phoneInput" placeholder="WhatsApp (e.g. 919876543210)">
+              </div>
+              <div class="col-5">
+                <button class="btn btn-sm btn-success w-100 fw-semibold py-1" style="font-size:0.8rem;" type="button" ng-click="$ctrl.shareWhatsApp()" ng-disabled="!$ctrl.phoneInput">
+                  <i class="fa-brands fa-whatsapp me-1"></i> WhatsApp
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Receipt Card Footer Actions -->
-        <div class="card-footer bg-light p-3 border-0 d-flex flex-wrap justify-content-between gap-2 no-print">
-          <button type="button" class="btn btn-outline-secondary px-3" ng-click="$ctrl.printReceipt()">
+        <!-- Receipt Card Footer Actions (Single Screen Row) -->
+        <div class="card-footer bg-light py-2 px-3 border-0 d-flex justify-content-between align-items-center gap-2 no-print">
+          <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1" style="font-size:0.82rem;" ng-click="$ctrl.printReceipt()">
             <i class="fa-solid fa-print me-1"></i> Print Receipt
           </button>
-          <div class="d-flex gap-2">
-            <button type="button" class="btn btn-gradient-blue px-4 shadow-sm" ng-click="$ctrl.onReset()">
-              <i class="fa-solid fa-microphone me-1"></i> Record Another
-            </button>
-          </div>
+          <button type="button" class="btn btn-sm btn-gradient-blue px-3 py-1 shadow-sm" style="font-size:0.82rem;" ng-click="$ctrl.onReset()">
+            <i class="fa-solid" ng-class="$ctrl.isModal ? 'fa-check' : 'fa-microphone'"></i>
+            {{ $ctrl.isModal ? 'Done' : 'Record Another' }}
+          </button>
         </div>
 
       </div>
@@ -163,16 +162,13 @@ app.component('transactionReceipt', {
         return;
       }
 
-      // Clone the receipt HTML and open a dedicated print window
       var receiptHTML = receiptEl.outerHTML;
       var printWindow = $window.open('', '_blank', 'width=800,height=900');
       if (!printWindow) {
-        // Popup blocked — fall back to window.print()
         $window.print();
         return;
       }
 
-      // Gather all stylesheets from the current page
       var stylesheets = '';
       var links = document.querySelectorAll('link[rel="stylesheet"]');
       for (var i = 0; i < links.length; i++) {
@@ -203,7 +199,6 @@ app.component('transactionReceipt', {
       printWindow.document.write(printDoc);
       printWindow.document.close();
 
-      // Wait for stylesheets to load, then trigger print
       printWindow.onload = function() {
         setTimeout(function() {
           printWindow.focus();

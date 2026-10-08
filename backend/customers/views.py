@@ -8,7 +8,7 @@ from transactions.views import get_request_user
 
 class CustomerViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'phone', 'email', 'notes']
     ordering_fields = ['name', 'created_at', 'updated_at']

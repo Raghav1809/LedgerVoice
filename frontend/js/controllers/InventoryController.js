@@ -11,7 +11,7 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
   $scope.formItem = {
     product_name: '',
     unit: 'kg',
-    quantity: 1.0,
+    quantity: null,  // Optional
     price: null
   };
   $scope.editingId = null;
@@ -26,20 +26,19 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
 
   // Valid units for display
   $scope.unitOptions = [
-    { value: 'kg', label: 'kg' },
-    { value: 'g', label: 'g' },
-    { value: 'litre', label: 'litre' },
-    { value: 'ml', label: 'ml' },
-    { value: 'piece', label: 'piece' },
-    { value: 'pcs', label: 'pcs' },
-    { value: 'bottle', label: 'bottle' },
-    { value: 'dozen', label: 'dozen' },
-    { value: 'packet', label: 'packet' },
-    { value: 'box', label: 'box' },
-    { value: 'bag', label: 'bag' },
-    { value: 'bundle', label: 'bundle' },
-    { value: 'mtr', label: 'mtr' },
-    { value: 'ft', label: 'ft' }
+    { value: 'kg', label: 'kg (Kilograms)' },
+    { value: 'g', label: 'g (Grams)' },
+    { value: 'litre', label: 'litre (Litres)' },
+    { value: 'ml', label: 'ml (Millilitres)' },
+    { value: 'pcs', label: 'pcs (Pieces)' },
+    { value: 'packet', label: 'packet (Packets)' },
+    { value: 'box', label: 'box (Boxes)' },
+    { value: 'bottle', label: 'bottle (Bottles)' },
+    { value: 'bag', label: 'bag (Bags)' },
+    { value: 'dozen', label: 'dozen (Dozens)' },
+    { value: 'bundle', label: 'bundle (Bundles)' },
+    { value: 'mtr', label: 'mtr (Metres)' },
+    { value: 'ft', label: 'ft (Feet)' }
   ];
   $scope.Math = window.Math;
   $scope.selectedUnitFilter = '';
@@ -90,7 +89,6 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
     });
   };
 
-
   // ── Load Inventory ────────────────────────────────────────────────
   $scope.loadInventory = function () {
     $scope.isLoading = true;
@@ -124,7 +122,7 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
   $scope.openAddModal = function () {
     $scope.editMode = false;
     $scope.editingId = null;
-    $scope.formItem = { product_name: '', unit: 'kg', quantity: 1.0, price: null };
+    $scope.formItem = { product_name: '', unit: 'kg', quantity: null, price: null };
   };
 
   $scope.openEditModal = function (item) {
@@ -144,21 +142,23 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
       toastService.warning('Product name cannot be empty.');
       return;
     }
-    if ($scope.formItem.quantity === null || $scope.formItem.quantity === undefined || $scope.formItem.quantity <= 0) {
-      toastService.warning('Quantity must be greater than zero.');
-      return;
-    }
     if ($scope.formItem.price === null || $scope.formItem.price === undefined || $scope.formItem.price < 0) {
       toastService.warning('Price cannot be negative or empty.');
       return;
     }
 
+    // Stock quantity is OPTIONAL - allow null/0/empty
+    var qtyVal = ($scope.formItem.quantity === null || $scope.formItem.quantity === undefined || $scope.formItem.quantity === '')
+      ? 0.0
+      : parseFloat($scope.formItem.quantity);
+    if (isNaN(qtyVal) || qtyVal < 0) qtyVal = 0.0;
+
     $scope.isSaving = true;
     var data = {
       product_name: $scope.formItem.product_name.trim(),
       unit: $scope.formItem.unit,
-      quantity: $scope.formItem.quantity,
-      price: $scope.formItem.price
+      quantity: qtyVal,
+      price: parseFloat($scope.formItem.price)
     };
 
     var promise;
@@ -170,7 +170,6 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
 
     promise.then(function () {
       toastService.success($scope.editMode ? 'Inventory item updated!' : 'Inventory item added!');
-      // Close modal
       var modalEl = document.getElementById('inventoryFormModal');
       if (modalEl && window.bootstrap) {
         var modal = window.bootstrap.Modal.getInstance(modalEl);
@@ -224,12 +223,8 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
     });
   };
 
-
-
   // ════════════════════════════════════════════════════════════════════
-  // INVENTORY-PRIVATE VOICE ADD
-  // Uses its own SpeechRecognition instance – completely independent
-  // from voiceService and VoiceInputController. No $rootScope events.
+  // INVENTORY VOICE RECOGNITION & SMART MULTI-PASS NLP PARSER
   // ════════════════════════════════════════════════════════════════════
 
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -277,7 +272,7 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
 
         _safeApply(function () {
           if (finalText) {
-            $scope.voiceTranscript += finalText;
+            $scope.voiceTranscript = ($scope.voiceTranscript ? $scope.voiceTranscript + ' ' : '') + finalText;
           }
           $scope.voiceInterim = interimText;
         });
@@ -361,7 +356,7 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
       _stopInventoryRecognition();
     } else {
       _startInventoryRecognition();
-      toastService.info('Listening... Say something like "Add 20 kg sugar for 1000 rupees"');
+      toastService.info('Listening... Say something like "Add 10 kg sugar for 450 rupees"');
     }
   };
 
@@ -370,34 +365,66 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
   });
 
   $scope.parseVoiceInventory = function () {
-    var text = ($scope.voiceTranscript || '').trim();
+    if ($scope.isRecording) {
+      _stopInventoryRecognition();
+      // Small delay to let final transcript settle after stopping recognition
+      setTimeout(function() {
+        $scope.$apply(function() {
+          $scope._doParseVoiceInventory();
+        });
+      }, 300);
+      return;
+    }
+    $scope._doParseVoiceInventory();
+  };
+
+  $scope._doParseVoiceInventory = function () {
+    var text = ($scope.voiceTranscript || $scope.voiceInterim || '').trim();
     if (!text) {
-      toastService.warning('No speech captured. Please record again.');
+      toastService.warning('No speech captured. Please speak clearly or type product details in the box above.');
       return;
     }
 
     var parsed = parseInventoryVoice(text);
-    if (parsed) {
+    if (parsed && parsed.product_name) {
       $scope.voiceParsed = parsed;
       $scope.showVoiceConfirm = true;
+      var priceStr = parsed.price > 0 ? '₹' + parsed.price : 'no price';
+      var qtyStr = parsed.quantity > 0 ? parsed.quantity + ' ' + parsed.unit : 'qty not set';
+      toastService.success('Extracted: "' + parsed.product_name + '" — ' + qtyStr + ' at ' + priceStr);
     } else {
-      toastService.warning('Could not extract product details. Try: "Sugar 45 rupees per kg" or "Add 20 kg sugar for 1000 rupees"');
+      toastService.warning('Could not extract product details. Try: "10 kg sugar for 450 rupees" or "sugar at 45 rupees per kg"');
     }
   };
 
   $scope.confirmVoiceAdd = function () {
     if (!$scope.voiceParsed) return;
 
+    if (!$scope.voiceParsed.product_name || !$scope.voiceParsed.product_name.trim()) {
+      toastService.warning('Product name is required.');
+      return;
+    }
+    if ($scope.voiceParsed.price === null || $scope.voiceParsed.price === undefined || $scope.voiceParsed.price < 0) {
+      toastService.warning('Price cannot be negative.');
+      return;
+    }
+
+    // Stock quantity is OPTIONAL in voice add too
+    var qtyVal = ($scope.voiceParsed.quantity === null || $scope.voiceParsed.quantity === undefined || $scope.voiceParsed.quantity === '')
+      ? 0.0
+      : parseFloat($scope.voiceParsed.quantity);
+    if (isNaN(qtyVal) || qtyVal < 0) qtyVal = 0.0;
+
     var data = {
-      product_name: $scope.voiceParsed.product_name,
-      unit: $scope.voiceParsed.unit,
-      quantity: $scope.voiceParsed.quantity,
-      price: $scope.voiceParsed.price
+      product_name: $scope.voiceParsed.product_name.trim(),
+      unit: $scope.voiceParsed.unit || 'pcs',
+      quantity: qtyVal,
+      price: parseFloat($scope.voiceParsed.price) || 0.0
     };
 
     $scope.isSaving = true;
     inventoryService.create(data).then(function () {
-      toastService.success('Added "' + data.product_name + '" to inventory via voice!');
+      toastService.success('Added "' + data.product_name + '" to inventory catalog!');
       $scope.closeVoiceAdd();
       $scope.loadInventory();
     }).catch(function (err) {
@@ -415,23 +442,20 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
     });
   };
 
-  // ── Inventory Voice Parser ───────────────────────────────────────
+  // ── Inventory Voice Unit Mapping ──────────────────────────────────
   var UNIT_MAP = {
     'kg': 'kg', 'kgs': 'kg', 'kilo': 'kg', 'kilos': 'kg', 'kilogram': 'kg', 'kilograms': 'kg',
     'g': 'g', 'gm': 'g', 'gms': 'g', 'gram': 'g', 'grams': 'g',
-    'l': 'litre', 'ltr': 'litre', 'liter': 'litre', 'liters': 'litre',
-    'litre': 'litre', 'litres': 'litre',
-    'ml': 'ml', 'milliliter': 'ml', 'millilitre': 'ml',
-    'milliliters': 'ml', 'millilitres': 'ml',
-    'piece': 'pcs', 'pieces': 'pcs', 'pcs': 'pcs', 'pc': 'pcs',
-    'unit': 'pcs', 'units': 'pcs',
+    'l': 'litre', 'ltr': 'litre', 'liter': 'litre', 'liters': 'litre', 'litre': 'litre', 'litres': 'litre',
+    'ml': 'ml', 'milliliter': 'ml', 'millilitre': 'ml', 'milliliters': 'ml', 'millilitres': 'ml',
+    'pcs': 'pcs', 'piece': 'pcs', 'pieces': 'pcs', 'pc': 'pcs', 'unit': 'pcs', 'units': 'pcs',
     'dozen': 'dozen', 'dozens': 'dozen', 'doz': 'dozen',
-    'packet': 'packet', 'packets': 'packet', 'pack': 'packet', 'packs': 'packet',
+    'packet': 'packet', 'packets': 'packet', 'pack': 'packet', 'packs': 'packet', 'pkt': 'packet',
     'box': 'box', 'boxes': 'box',
     'bottle': 'bottle', 'bottles': 'bottle',
     'bag': 'bag', 'bags': 'bag',
     'bundle': 'bundle', 'bundles': 'bundle',
-    'meter': 'mtr', 'meters': 'mtr', 'mtr': 'mtr',
+    'mtr': 'mtr', 'meter': 'mtr', 'meters': 'mtr', 'metre': 'mtr', 'metres': 'mtr',
     'ft': 'ft', 'feet': 'ft', 'foot': 'ft',
     'ton': 'kg', 'tons': 'kg'
   };
@@ -446,19 +470,21 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
   function parseInventoryVoice(text) {
     if (!text) return null;
 
-    var norm = text.trim()
-      .replace(/[,;:!]/g, ' ')
-      .replace(/^(?:(?:add\s+)?inventory\s+|add\s+|i\s+have\s+)/i, '')
+    var raw = text.trim();
+    // Normalize string: strip common action prefixes & punctuation
+    var norm = raw
+      .replace(/[,;:!?]/g, ' ')
+      .replace(/\b(?:(?:add\s+)?inventory\s+|add\s+item\s+|add\s+product\s+|please\s+add\s+|add\s+|i\s+want\s+to\s+add\s+)\b/gi, '')
       .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/[.,!?;:]+$/, '')
       .trim();
 
     var result = null;
     var m;
 
+    // Pattern 1: QTY + UNIT + (of)? + PRODUCT_NAME + (price/rate/for/@)? + PRICE
+    // e.g. "10 kg sugar for 450 rupees", "20 packets biscuit 200 rs", "5 litre oil at 800"
     var pQtyUnitProductPrice = new RegExp(
-      '^(\\d+(?:\\.\\d+)?)\\s*\\b(' + unitPattern + ')\\b\\s+(?:of\\s+)?([a-zA-Z][a-zA-Z\\s]{0,29}?)\\s+' + CONN_RE + '\\s*' + PRICE_RE + '$',
+      '^(\\d+(?:\\.\\d+)?)\\s*\\b(' + unitPattern + ')\\b\\s+(?:of\\s+)?([a-zA-Z0-9][a-zA-Z0-9\\s]{0,35}?)\\s+' + CONN_RE + '\\s*' + PRICE_RE + '$',
       'i'
     );
     m = pQtyUnitProductPrice.exec(norm);
@@ -466,9 +492,11 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
       result = { product_name: m[3], quantity: m[1], unit: m[2], price: m[4] };
     }
 
+    // Pattern 2: PRODUCT_NAME + QTY + UNIT + PRICE
+    // e.g. "Sugar 10 kg 450 rupees", "Sunflower oil 5 litre 800 rs"
     if (!result) {
       var pProductQtyUnitPrice = new RegExp(
-        '^([a-zA-Z][a-zA-Z\\s]{0,29}?)\\s+(\\d+(?:\\.\\d+)?)\\s*\\b(' + unitPattern + ')\\b\\s+' + CONN_RE + '\\s*' + PRICE_RE + '$',
+        '^([a-zA-Z0-9][a-zA-Z0-9\\s]{0,35}?)\\s+(\\d+(?:\\.\\d+)?)\\s*\\b(' + unitPattern + ')\\b\\s+' + CONN_RE + '\\s*' + PRICE_RE + '$',
         'i'
       );
       m = pProductQtyUnitPrice.exec(norm);
@@ -477,9 +505,11 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
       }
     }
 
+    // Pattern 3: PRODUCT_NAME + PRICE + per/each + UNIT
+    // e.g. "Sugar 45 rupees per kg", "Oil 160 per litre"
     if (!result) {
       var pProductPricePerUnit = new RegExp(
-        '^([a-zA-Z0-9][a-zA-Z0-9\\s]{0,30}?)\\s+' + CONN_RE + '\\s*' + PRICE_RE + '\\s+(?:per|a|an|each|\\/)?\\s*\\b(' + unitPattern + ')\\b$',
+        '^([a-zA-Z0-9][a-zA-Z0-9\\s]{0,35}?)\\s+' + CONN_RE + '\\s*' + PRICE_RE + '\\s+(?:per|a|an|each|\\/)?\\s*\\b(' + unitPattern + ')\\b$',
         'i'
       );
       m = pProductPricePerUnit.exec(norm);
@@ -488,9 +518,11 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
       }
     }
 
+    // Pattern 4: PRICE + per/each + UNIT + PRODUCT_NAME
+    // e.g. "45 rupees per kg sugar", "160 per litre oil"
     if (!result) {
       var pPricePerUnitProduct = new RegExp(
-        '^' + PRICE_RE + '\\s+(?:per|a|an|each|\\/)?\\s*\\b(' + unitPattern + ')\\b\\s+(?:of\\s+)?([a-zA-Z0-9][a-zA-Z0-9\\s]{0,30}?)$',
+        '^' + PRICE_RE + '\\s+(?:per|a|an|each|\\/)?\\s*\\b(' + unitPattern + ')\\b\\s+(?:of\\s+)?([a-zA-Z0-9][a-zA-Z0-9\\s]{0,35}?)$',
         'i'
       );
       m = pPricePerUnitProduct.exec(norm);
@@ -499,29 +531,84 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
       }
     }
 
+    // Pattern 5: QTY + UNIT + PRODUCT_NAME (without explicit price spoken)
+    // e.g. "10 kg sugar", "5 litre oil", "20 packets biscuit"
     if (!result) {
-      var pD = new RegExp(
-        '^([a-zA-Z0-9][a-zA-Z0-9\\s]{0,30}?)\\s+' + CONN_RE + '\\s*' + PRICE_RE + '$',
+      var pQtyUnitProduct = new RegExp(
+        '^(\\d+(?:\\.\\d+)?)\\s*\\b(' + unitPattern + ')\\b\\s+(?:of\\s+)?([a-zA-Z0-9][a-zA-Z0-9\\s]{0,35}?)$',
         'i'
       );
-      m = pD.exec(norm);
+      m = pQtyUnitProduct.exec(norm);
       if (m) {
-        result = { product_name: m[1], quantity: 1.0, unit: '', price: m[2] };
+        result = { product_name: m[3], quantity: m[1], unit: m[2], price: 0 };
       }
     }
 
+    // Pattern 6: PRODUCT_NAME + QTY + UNIT (without explicit price)
+    // e.g. "Sugar 10 kg", "Oil 5 litre"
     if (!result) {
-      var pE = new RegExp(
-        '^' + PRICE_RE + '\\s+(?:of\\s+)?([a-zA-Z0-9][a-zA-Z0-9\\s]{0,30}?)$',
+      var pProductQtyUnit = new RegExp(
+        '^([a-zA-Z0-9][a-zA-Z0-9\\s]{0,35}?)\\s+(\\d+(?:\\.\\d+)?)\\s*\\b(' + unitPattern + ')\\b$',
         'i'
       );
-      m = pE.exec(norm);
+      m = pProductQtyUnit.exec(norm);
       if (m) {
-        result = { product_name: m[2], quantity: 1.0, unit: '', price: m[1] };
+        result = { product_name: m[1], quantity: m[2], unit: m[3], price: 0 };
       }
     }
 
-    if (result) {
+    // Pattern 7: PRODUCT_NAME + PRICE (without explicit unit spoken)
+    // e.g. "Sugar 450 rupees", "Oil 800"
+    if (!result) {
+      var pProductPrice = new RegExp(
+        '^([a-zA-Z0-9][a-zA-Z0-9\\s]{0,35}?)\\s+' + CONN_RE + '\\s*' + PRICE_RE + '$',
+        'i'
+      );
+      m = pProductPrice.exec(norm);
+      if (m) {
+        result = { product_name: m[1], quantity: 1.0, unit: 'pcs', price: m[2] };
+      }
+    }
+
+    // PASS 2: Robust Fallback Entity Token Extraction
+    if (!result) {
+      var workingNorm = norm;
+      var qtyVal = 1.0;
+      var unitVal = 'pcs';
+      var priceVal = 0;
+
+      // Extract quantity + unit token if present anywhere
+      var unitMatch = workingNorm.match(/(\d+(?:\.\d+)?)\s*\b(kg|kgs|kilo|kilos|kilogram|kilograms|g|gm|gms|gram|grams|l|ltr|liter|liters|litre|litres|ml|milliliter|millilitre|pcs|piece|pieces|pc|unit|units|dozen|dozens|packet|packets|pkt|pack|packs|box|boxes|bottle|bottles|bag|bags|bundle|bundles|meter|meters|metre|metres|mtr|ft|feet|foot)\b/i);
+      if (unitMatch) {
+        qtyVal = parseFloat(unitMatch[1]);
+        unitVal = unitMatch[2];
+        workingNorm = workingNorm.replace(unitMatch[0], ' ');
+      }
+
+      // Extract price token if present anywhere
+      var priceMatch = workingNorm.match(/(?:rs\.?|rupees?|rupee|inr|₹|\$)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:rs\.?|rupees?|rupee|inr|₹|\$)|(?:\bfor\b|\bprice\b|\brate\b|\bat\b|\bcosting\b)\s*(\d+(?:\.\d+)?)/i);
+      if (priceMatch) {
+        priceVal = parseFloat(priceMatch[1] || priceMatch[2] || priceMatch[3] || 0);
+        workingNorm = workingNorm.replace(priceMatch[0], ' ');
+      }
+
+      // Remaining clean words = Product Name
+      var cleanProd = workingNorm
+        .replace(/\b(?:rs\.?|rupees?|rupee|inr|₹|\$|add|item|product|inventory|for|at|rate|price|costs?|costing|is|of|a|an|the|to|please)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (cleanProd && cleanProd.length >= 2) {
+        result = {
+          product_name: cleanProd,
+          quantity: qtyVal,
+          unit: unitVal,
+          price: priceVal
+        };
+      }
+    }
+
+    if (result && result.product_name) {
       result.product_name = result.product_name.trim()
         .split(/\s+/)
         .map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); })
@@ -529,8 +616,21 @@ app.controller('InventoryController', ['$scope', 'inventoryService', 'toastServi
 
       var rawUnit = (result.unit || '').toLowerCase().trim();
       result.unit = UNIT_MAP[rawUnit] || rawUnit || 'pcs';
+
+      // Smart infer unit from product name if still pcs
+      if (result.unit === 'pcs') {
+        var lowerName = result.product_name.toLowerCase();
+        if (/\b(?:oil|milk|water|juice|petrol|diesel|kerosene|ghee)\b/.test(lowerName)) {
+          result.unit = 'litre';
+        } else if (/\b(?:sugar|rice|wheat|flour|atta|dal|salt|pulses)\b/.test(lowerName)) {
+          result.unit = 'kg';
+        } else if (/\b(?:biscuit|biscuits|chips|soap|noodle|noodles|maggi|tea|coffee)\b/.test(lowerName)) {
+          result.unit = 'packet';
+        }
+      }
+
       result.quantity = parseFloat(result.quantity || 1.0);
-      result.price = parseFloat(result.price);
+      result.price = parseFloat(result.price || 0);
     }
 
     return result;

@@ -126,7 +126,7 @@ app.controller('ReminderController', ['$scope', 'reminderService', 'customerServ
   };
 
   $scope.saveReminder = function() {
-    if ($scope.isSaving) return;
+    if ($scope.isSaving) return; // Hard guard against double-submit
     if (!$scope.newReminder.customer || !$scope.newReminder.title || !$scope.newReminder.due_date) {
       toastService.warning('Customer, Title, and Due Date are required.');
       return;
@@ -140,14 +140,18 @@ app.controller('ReminderController', ['$scope', 'reminderService', 'customerServ
 
     reminderService.create(payload).then(function() {
       toastService.success('Reminder created successfully.');
+      $scope.newReminder = {}; // Reset form immediately
+      // Close modal programmatically
       var modalEl = document.getElementById('reminderModal');
       if (modalEl && window.bootstrap) {
         var modal = window.bootstrap.Modal.getInstance(modalEl);
         if (modal) modal.hide();
       }
       $scope.loadReminders();
-    }).catch(function() {
-      toastService.danger('Failed to create reminder.');
+    }).catch(function(err) {
+      var msg = 'Failed to create reminder.';
+      if (err && err.data && err.data.non_field_errors) msg = err.data.non_field_errors[0];
+      toastService.danger(msg);
     }).finally(function() {
       $scope.isSaving = false;
     });

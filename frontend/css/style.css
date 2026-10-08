@@ -175,6 +175,13 @@ body {
 .delay-5 { animation-delay: 0.5s; }
 
 /* ── Glassmorphism Navbar ────────────────────────────────────── */
+app-navbar {
+  display: block;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1050 !important;
+}
+
 .navbar-custom {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
@@ -182,9 +189,9 @@ body {
   border-bottom: 1px solid var(--border-blue);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   padding: 0.75rem 1.5rem;
-  position: sticky;
-  top: 0;
-  z-index: 1040;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1050 !important;
   transition: box-shadow var(--transition-std);
 }
 

@@ -1,23 +1,29 @@
 /**
- * authService.js - JWT Authentication & User Session Management for LedgerVoice
+ * authService.js - JWT Authentication & 10-Hour Session Expiration Management for LedgerVoice
  */
 app.factory('authService', ['$http', '$rootScope', '$location', 'API_BASE_URL', function($http, $rootScope, $location, API_BASE_URL) {
   var TOKEN_KEY = 'lv_token';
   var REFRESH_KEY = 'lv_refresh';
   var USER_KEY = 'lv_user';
+  var TIME_KEY = 'lv_login_timestamp';
+  var SESSION_DURATION_MS = 10 * 60 * 60 * 1000; // 10 Hours in milliseconds
 
   var service = {
     getToken: function() {
-      return localStorage.getItem(TOKEN_KEY);
+      var t = localStorage.getItem(TOKEN_KEY);
+      if (!t || t === 'null' || t === 'undefined' || !t.trim()) return null;
+      return t;
     },
 
     getRefreshToken: function() {
-      return localStorage.getItem(REFRESH_KEY);
+      var r = localStorage.getItem(REFRESH_KEY);
+      if (!r || r === 'null' || r === 'undefined' || !r.trim()) return null;
+      return r;
     },
 
     getUser: function() {
       var userJson = localStorage.getItem(USER_KEY);
-      if (!userJson) return null;
+      if (!userJson || userJson === 'null' || userJson === 'undefined') return null;
       try {
         return JSON.parse(userJson);
       } catch (e) {
@@ -25,15 +31,35 @@ app.factory('authService', ['$http', '$rootScope', '$location', 'API_BASE_URL', 
       }
     },
 
+    getLoginTimestamp: function() {
+      var ts = localStorage.getItem(TIME_KEY);
+      return ts ? parseInt(ts, 10) : 0;
+    },
+
+    isSessionExpired: function() {
+      var token = service.getToken();
+      if (!token) return true;
+      var loginTime = service.getLoginTimestamp();
+      if (!loginTime || isNaN(loginTime)) return true; // Require valid active login timestamp
+      var elapsed = Date.now() - loginTime;
+      return elapsed >= SESSION_DURATION_MS || elapsed < 0;
+    },
+
     isAuthenticated: function() {
       var token = service.getToken();
-      return !!token;
+      if (!token) return false;
+      if (service.isSessionExpired()) {
+        service.logout();
+        return false;
+      }
+      return true;
     },
 
     setSession: function(access, refresh, user) {
       if (access) localStorage.setItem(TOKEN_KEY, access);
       if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
       if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+      localStorage.setItem(TIME_KEY, Date.now().toString());
       $rootScope.$broadcast('auth:changed', service.getUser());
     },
 
@@ -46,7 +72,6 @@ app.factory('authService', ['$http', '$rootScope', '$location', 'API_BASE_URL', 
 
         service.setSession(access, refresh, user);
 
-        // Fetch fresh user profile if not directly provided
         if (!data.user) {
           service.fetchCurrentUser();
         }
@@ -91,6 +116,7 @@ app.factory('authService', ['$http', '$rootScope', '$location', 'API_BASE_URL', 
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_KEY);
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(TIME_KEY);
       $rootScope.$broadcast('auth:changed', null);
       $location.path('/login');
     }

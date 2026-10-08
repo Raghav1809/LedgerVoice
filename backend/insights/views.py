@@ -16,10 +16,10 @@ class InsightSummaryView(APIView):
     PROTECTED DASHBOARD METRICS API (DO NOT MODIFY DATA CONTRACT)
     Serves the primary VoiceKhata dashboard Overview.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        user = request.user if (request.user and request.user.is_authenticated) else get_local_user()
+        user = request.user
         customers = Customer.objects.filter(user=user)
         transactions = Transaction.objects.filter(user=user)
 
@@ -82,10 +82,10 @@ class AdvancedAnalyticsView(APIView):
     READ-ONLY ADVANCED FINANCIAL ANALYTICS API
     Aggregates transactions, product sales, expenses, cash flows, and credit recovery metrics.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        user = request.user if (request.user and request.user.is_authenticated) else get_local_user()
+        user = request.user
         qp = getattr(request, 'query_params', request.GET)
         time_filter = qp.get('time_filter', 'month')
         start_date_str = qp.get('start_date')

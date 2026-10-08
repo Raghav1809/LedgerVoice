@@ -20,15 +20,15 @@ def get_local_user():
 
 
 def get_request_user(request):
-    """Return authenticated user or fall back to local user for local mode."""
+    """Return authenticated user or None."""
     if request and hasattr(request, 'user') and request.user.is_authenticated:
         return request.user
-    return get_local_user()
+    return None
 
 
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['customer__name', 'customer_name_raw', 'description', 'amount']
     ordering_fields = ['date', 'amount', 'created_at']

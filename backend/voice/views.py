@@ -9,9 +9,8 @@ class SpeechParseView(APIView):
     POST /api/voice/parse/
     Body: { "transcript": "Rahul borrowed 500 rupees will pay in 2 weeks" }
     Returns structured transaction data extracted by spaCy NLP + rule-based parser.
-    No authentication required — runs fully local.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def _enrich_items_with_inventory(self, items, user=None):
         """

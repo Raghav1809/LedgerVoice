@@ -52,7 +52,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
     All operations are scoped to the authenticated user.
     """
     serializer_class = InventoryItemSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['product_name']
     ordering_fields = ['product_name', 'price', 'created_at', 'updated_at']

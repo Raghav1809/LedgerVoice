@@ -16,6 +16,7 @@ class InventoryItem(models.Model):
         ('dozen', 'Dozen'),
         ('packet', 'Packet'),
         ('box', 'Box'),
+        ('bottle', 'Bottle'),
         ('bag', 'Bag'),
         ('bundle', 'Bundle'),
         ('mtr', 'Metre'),
@@ -26,7 +27,7 @@ class InventoryItem(models.Model):
     product_name = models.CharField(max_length=150)
     unit = models.CharField(max_length=20, choices=UNIT_CHOICES, default='pcs')
     price = models.DecimalField(max_digits=12, decimal_places=2)
-    quantity = models.FloatField(default=1.0)
+    quantity = models.FloatField(default=0.0, null=True, blank=True)  # 0 or None = not tracked / optional
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -3,6 +3,8 @@ from .models import InventoryItem
 
 
 class InventoryItemSerializer(serializers.ModelSerializer):
+    quantity = serializers.FloatField(required=False, default=0.0, allow_null=True)
+
     class Meta:
         model = InventoryItem
         fields = ['id', 'product_name', 'unit', 'price', 'quantity', 'created_at', 'updated_at']
@@ -19,8 +21,11 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         return value
 
     def validate_quantity(self, value):
-        if value is None or value <= 0:
-            raise serializers.ValidationError("Quantity must be greater than zero.")
+        # Quantity is OPTIONAL — allow 0 or None (means "not tracked")
+        if value is None:
+            return 0.0
+        if value < 0:
+            raise serializers.ValidationError("Quantity cannot be negative.")
         return value
 
     def validate_unit(self, value):

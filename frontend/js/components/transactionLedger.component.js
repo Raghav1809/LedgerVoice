@@ -196,7 +196,7 @@ app.component('transactionLedger', {
 
                 <div class="d-flex justify-content-end gap-2 pt-2">
                   <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                  <button type="submit" class="btn btn-gradient-blue" data-bs-dismiss="modal">Save Transaction</button>
+                  <button type="submit" class="btn btn-gradient-blue">Save Transaction</button>
                 </div>
               </form>
             </div>
@@ -204,16 +204,12 @@ app.component('transactionLedger', {
         </div>
       </div>
 
-      <!-- Receipt Modal -->
+      <!-- Receipt Modal (Single Screen, No Scroll) -->
       <div class="modal fade" id="receiptModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
-          <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
-            <div class="modal-header border-0 bg-light pb-2">
-              <h5 class="modal-title fw-bold"><i class="fa-solid fa-receipt text-primary me-2"></i> Transaction Receipt</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+        <div class="modal-dialog modal-dialog-centered my-2" style="max-width: 580px;">
+          <div class="modal-content border-0 bg-transparent shadow-none">
             <div class="modal-body p-0">
-              <transaction-receipt transaction="$ctrl.selectedReceiptTx" on-reset="$ctrl.closeReceiptModal()"></transaction-receipt>
+              <transaction-receipt transaction="$ctrl.selectedReceiptTx" on-reset="$ctrl.closeReceiptModal()" is-modal="true"></transaction-receipt>
             </div>
           </div>
         </div>
@@ -283,15 +279,43 @@ app.component('transactionLedger', {
       if (payload.due_date) payload.due_date = payload.due_date.toISOString().split('T')[0];
 
       if (ctrl.editMode) {
-        transactionService.update(payload.id, payload).then(function() {
+        transactionService.update(payload.id, payload).then(function(res) {
           toastService.success('Transaction updated successfully');
+          // Close modal
+          var modalEl = document.getElementById('transactionModal');
+          if (modalEl && $window.bootstrap) {
+            var m = $window.bootstrap.Modal.getInstance(modalEl);
+            if (m) m.hide();
+          }
           ctrl.loadTransactions();
         }, function(err) {
           toastService.danger('Failed to update transaction');
         });
       } else {
-        transactionService.create(payload).then(function() {
-          toastService.success('Transaction created successfully');
+        transactionService.create(payload).then(function(res) {
+          toastService.success('Transaction saved successfully!');
+          ctrl.savedTx = res.data;
+          // Augment with customer name for receipt display
+          if (ctrl.savedTx && !ctrl.savedTx.customer_name_raw) {
+            ctrl.savedTx.customer_name_raw = payload.customer_name;
+          }
+          // Close the add/edit modal first, then open receipt
+          var txModal = document.getElementById('transactionModal');
+          if (txModal && $window.bootstrap) {
+            var m = $window.bootstrap.Modal.getInstance(txModal);
+            if (m) {
+              m.hide();
+              // Wait for modal hide animation then show receipt
+              txModal.addEventListener('hidden.bs.modal', function onHide() {
+                txModal.removeEventListener('hidden.bs.modal', onHide);
+                ctrl.viewReceipt(ctrl.savedTx);
+              }, { once: true });
+            } else {
+              ctrl.viewReceipt(ctrl.savedTx);
+            }
+          } else {
+            ctrl.viewReceipt(ctrl.savedTx);
+          }
           ctrl.loadTransactions();
         }, function(err) {
           toastService.danger('Failed to create transaction');

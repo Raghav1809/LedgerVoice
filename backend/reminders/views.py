@@ -10,7 +10,7 @@ from transactions.views import get_request_user
 
 class ReminderViewSet(viewsets.ModelViewSet):
     serializer_class = ReminderSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'customer__name', 'notes']
     ordering_fields = ['due_date', 'created_at']

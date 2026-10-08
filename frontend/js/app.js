@@ -3,10 +3,22 @@ var app = angular.module('ledgerVoiceApp', ['ngRoute']);
 app.constant('API_BASE_URL', '/api');
 
 // JWT HTTP Request/Response Interceptor
-app.factory('jwtInterceptor', ['$q', '$location', function($q, $location) {
+app.factory('jwtInterceptor', ['$q', '$location', 'toastService', function($q, $location, toastService) {
   return {
     request: function(config) {
       var token = localStorage.getItem('lv_token');
+      var loginTime = parseInt(localStorage.getItem('lv_login_timestamp') || '0', 10);
+      var isExpired = loginTime > 0 && (Date.now() - loginTime >= 10 * 60 * 60 * 1000);
+
+      if (isExpired && config.url && config.url.indexOf('/api/auth/') === -1) {
+        localStorage.removeItem('lv_token');
+        localStorage.removeItem('lv_refresh');
+        localStorage.removeItem('lv_user');
+        localStorage.removeItem('lv_login_timestamp');
+        $location.path('/login');
+        return $q.reject('Session expired');
+      }
+
       if (token && config.url && config.url.indexOf('/api/') !== -1) {
         config.headers = config.headers || {};
         config.headers.Authorization = 'Bearer ' + token;
@@ -18,29 +30,116 @@ app.factory('jwtInterceptor', ['$q', '$location', function($q, $location) {
         localStorage.removeItem('lv_token');
         localStorage.removeItem('lv_refresh');
         localStorage.removeItem('lv_user');
+        localStorage.removeItem('lv_login_timestamp');
+        $location.path('/login');
       }
       return $q.reject(rejection);
     }
   };
 }]);
 
+var authResolve = {
+  auth: ['$q', '$location', 'authService', function($q, $location, authService) {
+    if (!authService.isAuthenticated()) {
+      $location.path('/login').replace();
+      return $q.reject('AUTH_REQUIRED');
+    }
+    return $q.resolve(true);
+  }]
+};
+
+var guestResolve = {
+  guest: ['$q', '$location', 'authService', function($q, $location, authService) {
+    if (authService.isAuthenticated()) {
+      $location.path('/dashboard').replace();
+      return $q.reject('ALREADY_AUTHENTICATED');
+    }
+    return $q.resolve(true);
+  }]
+};
+
+function defaultRedirect() {
+  var token = localStorage.getItem('lv_token');
+  var ts = parseInt(localStorage.getItem('lv_login_timestamp') || '0', 10);
+  var valid = token && token !== 'null' && token !== 'undefined' && ts && (Date.now() - ts < 10 * 60 * 60 * 1000);
+  return valid ? '/dashboard' : '/login';
+}
+
 app.config(['$routeProvider', '$httpProvider', function ($routeProvider, $httpProvider) {
   $httpProvider.interceptors.push('jwtInterceptor');
 
   $routeProvider
-    .when('/dashboard',    { templateUrl: 'views/dashboard.html',    controller: 'DashboardController' })
-    .when('/voice',        { templateUrl: 'views/voice.html',        controller: 'VoiceInputController' })
-    .when('/transactions', { templateUrl: 'views/transactions.html', controller: 'TransactionController' })
-    .when('/inventory',    { templateUrl: 'views/inventory.html',    controller: 'InventoryController' })
-    .when('/reminders',    { templateUrl: 'views/reminders.html',    controller: 'ReminderController' })
-    .when('/login',        { templateUrl: 'views/login.html',        controller: 'AuthController' })
-    .when('/register',     { templateUrl: 'views/register.html',     controller: 'AuthController' })
+    .when('/dashboard',    { templateUrl: 'views/dashboard.html',    controller: 'DashboardController', resolve: authResolve })
+    .when('/voice',        { templateUrl: 'views/voice.html',        controller: 'VoiceInputController', resolve: authResolve })
+    .when('/transactions', { templateUrl: 'views/transactions.html', controller: 'TransactionController', resolve: authResolve })
+    .when('/inventory',    { templateUrl: 'views/inventory.html',    controller: 'InventoryController', resolve: authResolve })
+    .when('/reminders',    { templateUrl: 'views/reminders.html',    controller: 'ReminderController', resolve: authResolve })
+    .when('/login',        { templateUrl: 'views/login.html',        controller: 'AuthController', resolve: guestResolve })
+    .when('/register',     { templateUrl: 'views/register.html',     controller: 'AuthController', resolve: guestResolve })
     // Fallback & legacy redirects
     .when('/customers',  { redirectTo: '/dashboard' })
     .when('/insights',   { redirectTo: '/dashboard' })
     .when('/settings',   { redirectTo: '/dashboard' })
-    .when('/',           { redirectTo: '/dashboard' })
-    .otherwise(          { redirectTo: '/dashboard' });
+    .when('/',           { redirectTo: defaultRedirect })
+    .otherwise(          { redirectTo: defaultRedirect });
+}]);
+
+// Global Route Guard & 10-Hour Session Expiration Check
+app.run(['$rootScope', '$location', 'authService', 'toastService', function($rootScope, $location, authService, toastService) {
+  var PUBLIC_ROUTES = ['/login', '/register'];
+
+  function isPublicRoute(path) {
+    return PUBLIC_ROUTES.indexOf(path) !== -1;
+  }
+
+  // Handle route resolution rejection
+  $rootScope.$on('$routeChangeError', function(event, current, previous, rejection) {
+    if (rejection === 'AUTH_REQUIRED') {
+      toastService.warning('Please sign in to access LedgerVoice.');
+      $location.path('/login').replace();
+    }
+  });
+
+  // $routeChangeStart guard
+  $rootScope.$on('$routeChangeStart', function(event, next) {
+    var targetPath = (next && next.$$route && next.$$route.originalPath) ? next.$$route.originalPath : '';
+    if (!targetPath) return;
+
+    var pub = isPublicRoute(targetPath);
+    var authed = authService.isAuthenticated();
+
+    // Session expired: force logout
+    if (authService.getToken() && authService.isSessionExpired()) {
+      if (event && event.preventDefault) event.preventDefault();
+      authService.logout();
+      toastService.warning('Your 10-hour session has expired. Please log in again.');
+      $location.path('/login').replace();
+      return;
+    }
+
+    // Not logged in → trying to access protected page
+    if (!pub && !authed) {
+      if (event && event.preventDefault) event.preventDefault();
+      toastService.warning('Access denied. Please sign in to continue.');
+      $location.path('/login').replace();
+      return;
+    }
+
+    // Already logged in → trying to go to /login or /register
+    if (pub && authed) {
+      if (event && event.preventDefault) event.preventDefault();
+      $location.path('/dashboard').replace();
+    }
+  });
+
+  // $locationChangeStart guard (catches initial page load or direct URL edits)
+  $rootScope.$on('$locationChangeStart', function(event, newUrl) {
+    var authed = authService.isAuthenticated();
+    var isPub = (newUrl || '').indexOf('/login') !== -1 || (newUrl || '').indexOf('/register') !== -1;
+    if (!authed && !isPub) {
+      $location.path('/login').replace();
+    }
+  });
 }]);
 
 app.controller('MainController', ['$scope', '$location', 'toastService', 'authService', function ($scope, $location, toastService, authService) {

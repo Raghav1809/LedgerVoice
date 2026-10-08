@@ -8,7 +8,7 @@ app.component('appNavbar', {
       <div class="container-fluid px-3 px-md-4">
 
         <!-- Brand -->
-        <a class="navbar-brand navbar-brand-custom" href="#!/dashboard">
+        <a class="navbar-brand navbar-brand-custom" ng-href="{{ $ctrl.isAuthenticated ? '#!/dashboard' : '#!/login' }}">
           <i class="fa-solid fa-microphone-lines"></i>
           LedgerVoice
         </a>
@@ -26,7 +26,7 @@ app.component('appNavbar', {
 
         <!-- Nav Links -->
         <div class="collapse navbar-collapse" id="navMenu">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1" ng-if="$ctrl.isAuthenticated">
 
             <li class="nav-item">
               <a class="nav-link nav-link-custom" 
