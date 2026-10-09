@@ -62,32 +62,79 @@ VoiceKhata enables business owners, shopkeepers, and service providers to manage
 ## 📁 Folder Structure
 
 ```
-voicekhata/
-├── backend/
-│   ├── manage.py
-│   ├── requirements.txt
-│   ├── .env.example
-│   ├── .env
-│   ├── voicekhata_backend/
-│   │   ├── settings.py           # Django & Database configuration
-│   │   ├── urls.py               # Main API routes & SPA fallback
+LedgerVoice/
+│
+├── server/                          # (Backend layer)
+│   ├── apps/                        # Django apps (Models + Controllers/ViewSets)
+│   │   ├── authentication/          # Model: UserProfile | Controller: auth views
+│   │   ├── customers/               # Model: Customer    | Controller: CRUD
+│   │   ├── transactions/            # Model: Transaction | Controller: CRUD + ledger logic
+│   │   ├── inventory/               # Model: InventoryItem | Controller: lookup, CRUD
+│   │   ├── reminders/               # Model: Reminder    | Controller: toggle, CRUD
+│   │   ├── insights/                # Controller: analytics aggregations (no model)
+│   │   ├── voice/                   # Controller: NLP parser endpoint
+│   │   └── settings_app/            # Model: UserSettings | Controller: update
+│   │
+│   ├── config/                      # Django project configuration
+│   │   ├── settings.py              # Django project settings
+│   │   ├── urls.py                  # Root URL dispatcher
 │   │   └── wsgi.py
-│   ├── authentication/           # JWT auth, registration, profile, password change
-│   ├── customers/                # Customer ledger CRUD & balances
-│   ├── transactions/             # Transaction CRUD (Credit, Payment, Sales, Expense)
-│   ├── voice/                    # English speech parser (Gemini API + Rule fallback)
-│   ├── insights/                 # Analytics summary metrics & chart data
-│   ├── reminders/                # Payment due reminders
-│   └── settings_app/             # User settings & preferences
-└── frontend/
-    ├── index.html                # Single Page Application shell
-    ├── css/
-    │   └── style.css             # Modern Blue/White design system
-    ├── js/
-    │   ├── app.js                # AngularJS module, route config, JWT interceptor
-    │   ├── services/             # authService, apiService, voiceService, etc.
-    │   └── controllers/          # DashboardController, VoiceInputController, etc.
-    └── views/                    # HTML views (landing, dashboard, voice, etc.)
+│   │
+│   ├── .env                         # Environment variables (gitignored)
+│   ├── .env.example                 # Template for setup
+│   ├── manage.py
+│   └── requirements.txt
+│
+├── client/                          # (Frontend layer)
+│   ├── views/                       # V — HTML page templates (Angular routes)
+│   │   ├── dashboard.html
+│   │   ├── voice.html
+│   │   ├── transactions.html
+│   │   ├── inventory.html
+│   │   ├── reminders.html
+│   │   ├── login.html
+│   │   └── register.html
+│   │
+│   ├── js/
+│   │   ├── controllers/             # C — AngularJS controllers (page logic)
+│   │   │   ├── AuthController.js
+│   │   │   ├── DashboardController.js
+│   │   │   ├── VoiceInputController.js
+│   │   │   ├── TransactionController.js
+│   │   │   ├── InventoryController.js
+│   │   │   └── ReminderController.js
+│   │   │
+│   │   ├── services/                # M (proxy) — API services talking to server
+│   │   │   ├── apiService.js        # Base HTTP wrapper
+│   │   │   ├── authService.js
+│   │   │   ├── customerService.js
+│   │   │   ├── transactionService.js
+│   │   │   ├── inventoryService.js
+│   │   │   ├── insightService.js
+│   │   │   ├── reminderService.js
+│   │   │   ├── voiceService.js
+│   │   │   ├── toastService.js
+│   │   │   └── itemsParser.js
+│   │   │
+│   │   ├── components/              # Reusable Angular components (sub-views)
+│   │   │   ├── navbar.component.js
+│   │   │   ├── voiceRecorder.component.js
+│   │   │   ├── transactionLedger.component.js
+│   │   │   ├── transactionReceipt.component.js
+│   │   │   ├── itemsExtractor.component.js
+│   │   │   └── toastNotifications.component.js
+│   │   │
+│   │   └── app.js                   # Angular module + routes + interceptors
+│   │
+│   ├── css/
+│   │   ├── style.css
+│   │   └── fontawesome.min.css
+│   │
+│   ├── webfonts/                    # FontAwesome self-hosted fonts
+│   └── index.html                   # SPA shell
+│
+├── .gitignore
+└── README.md
 ```
 
 ---
