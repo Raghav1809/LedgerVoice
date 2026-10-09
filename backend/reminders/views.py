@@ -18,7 +18,7 @@ class ReminderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = get_request_user(self.request)
-        queryset = Reminder.objects.filter(user=user)
+        queryset = Reminder.objects.filter(user=user).select_related('customer')
         
         # Category filter: today, upcoming, missed
         category = self.request.query_params.get('category')

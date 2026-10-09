@@ -6,8 +6,12 @@ app.factory('transactionService', ['$q', 'apiService', function($q, apiService) 
   var STORAGE_KEY = 'ledgervoice_transactions';
 
   function getLocalBackup() {
-    var stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    try {
+      var stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
   }
 
   function saveLocalBackup(list) {

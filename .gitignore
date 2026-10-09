@@ -1,6 +1,34 @@
-# Local environment settings
-backend/.env
+# Python virtual environments
+venv/
+*/venv/
+env/
+*/env/
+ENV/
+
+# Python byte-code and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+
+# Local environment configuration
 .env
 .env.*
+backend/.env
 !backend/.env.example
+
+# Local SQLite databases (PostgreSQL is used)
+*.sqlite3
+db.sqlite3
+backend/db.sqlite3
+
+# Static files collection
+staticfiles/
+collected_static/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 explain.md

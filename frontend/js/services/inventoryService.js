@@ -8,6 +8,10 @@ app.factory('inventoryService', ['apiService', '$q', function(apiService, $q) {
   }
 
   function refreshCache() {
+    var token = localStorage.getItem('lv_token');
+    if (!token) {
+      return $q.resolve(cachedItems);
+    }
     return apiService.get('/inventory/').then(function(res) {
       var items = res.data.results || res.data || [];
       updateCache(items);
@@ -17,8 +21,10 @@ app.factory('inventoryService', ['apiService', '$q', function(apiService, $q) {
     });
   }
 
-  // Pre-fetch cache immediately when service initializes
-  refreshCache();
+  // Pre-fetch cache if logged in
+  if (localStorage.getItem('lv_token')) {
+    refreshCache();
+  }
 
   return {
     refreshCache: refreshCache,

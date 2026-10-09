@@ -66,43 +66,62 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'voicekhata_backend.wsgi.application'
 
-# Database — PostgreSQL support with graceful SQLite fallback
+# ─── Database Configuration (PostgreSQL Native with Cloud/Live Support) ────────
 DATABASE_URL = os.getenv('DATABASE_URL')
 DB_ENGINE = os.getenv('DB_ENGINE', '')
-DB_NAME = os.getenv('DB_NAME')
+DB_NAME = os.getenv('DB_NAME') or os.getenv('POSTGRES_DB', 'voicekhata_db')
+DB_USER = os.getenv('DB_USER') or os.getenv('POSTGRES_USER', 'postgres')
+DB_PASSWORD = os.getenv('DB_PASSWORD') or os.getenv('POSTGRES_PASSWORD', 'postgres')
+DB_HOST = os.getenv('DB_HOST') or os.getenv('POSTGRES_HOST', 'localhost')
+DB_PORT = os.getenv('DB_PORT') or os.getenv('POSTGRES_PORT', '5432')
+DB_SSLMODE = os.getenv('DB_SSLMODE')
 
 if DATABASE_URL:
     try:
         import dj_database_url
         DATABASES = {
-            'default': dj_database_url.config(
-                default=DATABASE_URL,
-                conn_max_age=600
+            'default': dj_database_url.parse(
+                DATABASE_URL,
+                conn_max_age=600,
+                ssl_require=(DB_SSLMODE == 'require' or 'sslmode=require' in DATABASE_URL.lower())
             )
         }
-    except Exception:
+    except Exception as e:
         DATABASES = {
             'default': {
                 'ENGINE': 'django.db.backends.sqlite3',
                 'NAME': BASE_DIR / 'db.sqlite3',
             }
         }
-elif DB_ENGINE == 'django.db.backends.postgresql' or (DB_NAME and os.getenv('DB_USER')):
+elif DB_ENGINE == 'django.db.backends.postgresql' or DB_NAME or os.getenv('POSTGRES_DB'):
+    db_options = {}
+    if DB_SSLMODE:
+        db_options['sslmode'] = DB_SSLMODE
+    elif not DEBUG and DB_HOST not in ('localhost', '127.0.0.1'):
+        db_options['sslmode'] = 'require'
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'ledgervoice_db'),
-            'USER': os.getenv('DB_USER', 'postgres'),
-            'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '5432'),
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': DB_HOST,
+            'PORT': DB_PORT,
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': db_options,
         }
     }
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'voicekhata_db',
+            'USER': 'postgres',
+            'PASSWORD': 'postgres',
+            'HOST': 'localhost',
+            'PORT': '5432',
+            'CONN_MAX_AGE': 600,
         }
     }
 

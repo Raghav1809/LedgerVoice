@@ -34,30 +34,40 @@ class InsightSummaryView(APIView):
         pending_amount = max(0.0, total_credit - total_payments)
         recovered_amount = min(total_credit, total_payments)
 
-        # Monthly trends (last 6 months)
+        # Monthly trends (last 6 months) — single batch query
         today = timezone.now().date()
         monthly_labels = []
         monthly_credits = []
         monthly_payments = []
+        month_ranges = []
 
         for i in range(5, -1, -1):
-            # Calculate month range
             first_day = (today.replace(day=1) - timedelta(days=i*30)).replace(day=1)
             next_month = (first_day + timedelta(days=32)).replace(day=1)
-            
             label = first_day.strftime('%b %Y')
             monthly_labels.append(label)
+            month_ranges.append((first_day, next_month, len(monthly_labels) - 1))
+            monthly_credits.append(0.0)
+            monthly_payments.append(0.0)
 
-            m_txs = transactions.filter(date__gte=first_day, date__lt=next_month)
-            m_cred = float(m_txs.filter(transaction_type__in=['credit', 'sales']).aggregate(t=Sum('amount'))['t'] or 0.0)
-            m_pay = float(m_txs.filter(transaction_type__in=['payment', 'expense']).aggregate(t=Sum('amount'))['t'] or 0.0)
+        # Single query for all transactions in the 6-month window
+        earliest_date = month_ranges[0][0]
+        recent_tx_values = list(transactions.filter(date__gte=earliest_date).values('date', 'transaction_type', 'amount'))
+        for tx in recent_tx_values:
+            tx_date = tx['date']
+            tx_type = tx['transaction_type']
+            tx_amt = float(tx['amount'])
+            for first_day, next_month, idx in month_ranges:
+                if first_day <= tx_date < next_month:
+                    if tx_type in ('credit', 'sales'):
+                        monthly_credits[idx] += tx_amt
+                    elif tx_type in ('payment', 'expense'):
+                        monthly_payments[idx] += tx_amt
+                    break
 
-            monthly_credits.append(m_cred)
-            monthly_payments.append(m_pay)
-
-        # Recent 5 transactions
+        # Recent 5 transactions with select_related
         from transactions.serializers import TransactionSerializer
-        recent_transactions = TransactionSerializer(transactions.order_by('-date', '-created_at')[:5], many=True).data
+        recent_transactions = TransactionSerializer(transactions.select_related('customer').order_by('-date', '-created_at')[:5], many=True).data
 
         return Response({
             'total_customers': total_customers,
@@ -118,7 +128,7 @@ class AdvancedAnalyticsView(APIView):
                 end_date = today
 
         # Base user transactions
-        all_txs = Transaction.objects.filter(user=user)
+        all_txs = Transaction.objects.filter(user=user).select_related('customer')
         filtered_txs = all_txs
         if start_date:
             filtered_txs = filtered_txs.filter(date__gte=start_date)
@@ -180,10 +190,18 @@ class AdvancedAnalyticsView(APIView):
                 cust_sales[c_name] = cust_sales.get(c_name, 0.0) + float(tx.amount)
         top_customers = sorted([{'name': k, 'amount': round(v, 2)} for k, v in cust_sales.items()], key=lambda x: x['amount'], reverse=True)[:10]
 
-        # Outstanding customers (Net credit balance > 0)
+        # Outstanding customers (Batch annotated in 1 query)
+        from django.db.models import Q, DecimalField
+        from django.db.models.functions import Coalesce
+        credit_q = Q(transactions__transaction_type__in=['credit', 'sales'])
+        payment_q = Q(transactions__transaction_type__in=['payment', 'expense'])
+        annotated_customers = customers_qs.annotate(
+            c_cred=Coalesce(Sum('transactions__amount', filter=credit_q), 0.0, output_field=DecimalField()),
+            c_pay=Coalesce(Sum('transactions__amount', filter=payment_q), 0.0, output_field=DecimalField())
+        )
         outstanding_customers = []
-        for c in customers_qs:
-            nb = c.net_balance
+        for c in annotated_customers:
+            nb = float(c.c_cred) - float(c.c_pay)
             if nb > 0:
                 outstanding_customers.append({
                     'id': c.id,

@@ -21,17 +21,27 @@ class Customer(models.Model):
 
     @property
     def total_credit(self):
-        # Credit + Cash Out / Sales
+        if hasattr(self, '_total_credit'):
+            return self._total_credit
+        if hasattr(self, 'annotated_credit') and self.annotated_credit is not None:
+            self._total_credit = float(self.annotated_credit)
+            return self._total_credit
         credit_sum = self.transactions.filter(transaction_type__in=['credit', 'sales']).aggregate(total=Sum('amount'))['total'] or 0.0
-        return float(credit_sum)
+        self._total_credit = float(credit_sum)
+        return self._total_credit
 
     @property
     def total_payments(self):
-        # Payment + Cash In
+        if hasattr(self, '_total_payments'):
+            return self._total_payments
+        if hasattr(self, 'annotated_payments') and self.annotated_payments is not None:
+            self._total_payments = float(self.annotated_payments)
+            return self._total_payments
         payment_sum = self.transactions.filter(transaction_type__in=['payment', 'expense']).aggregate(total=Sum('amount'))['total'] or 0.0
-        return float(payment_sum)
+        self._total_payments = float(payment_sum)
+        return self._total_payments
 
     @property
     def net_balance(self):
         # Outstanding credit owed by customer = total credit - total payments
-        return self.total_credit - self.total_payments
+        return round(self.total_credit - self.total_payments, 2)

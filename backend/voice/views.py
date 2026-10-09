@@ -29,15 +29,17 @@ class SpeechParseView(APIView):
             from transactions.views import get_local_user
 
             target_user = user or get_local_user()
+            user_items_map = {
+                inv.product_name.strip().lower(): inv
+                for inv in InventoryItem.objects.filter(user=target_user)
+            }
 
             for item in items:
                 if item.get('price', 0) > 0 and item.get('total', 0) > 0:
                     item['price_source'] = 'voice'
                 else:
-                    inv_item = InventoryItem.objects.filter(
-                        user=target_user,
-                        product_name__iexact=item.get('name', '').strip()
-                    ).first()
+                    item_key = item.get('name', '').strip().lower()
+                    inv_item = user_items_map.get(item_key)
 
                     if inv_item:
                         item_unit = item.get('unit', 'pcs')

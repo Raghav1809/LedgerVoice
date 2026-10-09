@@ -36,7 +36,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = get_request_user(self.request)
-        queryset = Transaction.objects.filter(user=user)
+        queryset = Transaction.objects.filter(user=user).select_related('customer')
 
         # Filter by customer ID
         customer_id = self.request.query_params.get('customer')
@@ -56,48 +56,51 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        from django.db import transaction
         user = get_request_user(self.request)
-        instance = serializer.save(user=user)
 
-        # Auto-create reminder for credit/udhaar transactions — uses get_or_create to prevent duplicates
-        try:
-            if instance.customer and instance.transaction_type == 'credit':
-                from reminders.models import Reminder
-                from django.utils import timezone
+        with transaction.atomic():
+            instance = serializer.save(user=user)
 
-                due = instance.due_date if instance.due_date else (instance.date or timezone.localdate())
-                title = f"Due: {instance.description[:40]}" if instance.description else f"Credit Due from {instance.customer.name}"
+            # Auto-create reminder for credit/udhaar transactions — uses get_or_create to prevent duplicates
+            try:
+                if instance.customer and instance.transaction_type == 'credit':
+                    from reminders.models import Reminder
+                    from django.utils import timezone
 
-                Reminder.objects.get_or_create(
-                    user=user,
-                    customer=instance.customer,
-                    amount=instance.amount,
-                    due_date=due,
-                    defaults={
-                        'title': title,
-                        'status': 'pending',
-                        'notes': f"Auto-synced from credit transaction #{instance.id}."
-                    }
-                )
-            elif instance.customer and instance.transaction_type == 'payment':
-                # Mark oldest pending reminders as completed based on payment amount
-                from reminders.models import Reminder
-                pending = Reminder.objects.filter(
-                    user=user,
-                    customer=instance.customer,
-                    status='pending'
-                ).order_by('due_date')
+                    due = instance.due_date if instance.due_date else (instance.date or timezone.localdate())
+                    title = f"Due: {instance.description[:40]}" if instance.description else f"Credit Due from {instance.customer.name}"
 
-                remaining = float(instance.amount)
-                for rem in pending:
-                    if remaining <= 0:
-                        break
-                    if remaining >= float(rem.amount):
-                        remaining -= float(rem.amount)
-                        rem.status = 'completed'
-                        rem.save()
-                    else:
-                        break
-        except Exception:
-            pass
+                    Reminder.objects.get_or_create(
+                        user=user,
+                        customer=instance.customer,
+                        amount=instance.amount,
+                        due_date=due,
+                        defaults={
+                            'title': title,
+                            'status': 'pending',
+                            'notes': f"Auto-synced from credit transaction #{instance.id}."
+                        }
+                    )
+                elif instance.customer and instance.transaction_type == 'payment':
+                    # Mark oldest pending reminders as completed based on payment amount
+                    from reminders.models import Reminder
+                    pending = Reminder.objects.filter(
+                        user=user,
+                        customer=instance.customer,
+                        status='pending'
+                    ).order_by('due_date')
+
+                    remaining = float(instance.amount)
+                    for rem in pending:
+                        if remaining <= 0:
+                            break
+                        if remaining >= float(rem.amount):
+                            remaining -= float(rem.amount)
+                            rem.status = 'completed'
+                            rem.save()
+                        else:
+                            break
+            except Exception:
+                pass
 

@@ -16,7 +16,16 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = get_request_user(self.request)
-        return Customer.objects.filter(user=user)
+        from django.db.models import Sum, Q, DecimalField
+        from django.db.models.functions import Coalesce
+
+        credit_q = Q(transactions__transaction_type__in=['credit', 'sales'])
+        payment_q = Q(transactions__transaction_type__in=['payment', 'expense'])
+
+        return Customer.objects.filter(user=user).annotate(
+            annotated_credit=Coalesce(Sum('transactions__amount', filter=credit_q), 0.0, output_field=DecimalField()),
+            annotated_payments=Coalesce(Sum('transactions__amount', filter=payment_q), 0.0, output_field=DecimalField())
+        )
 
     def perform_create(self, serializer):
         user = get_request_user(self.request)
@@ -26,7 +35,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     def transactions(self, request, pk=None):
         customer = self.get_object()
         from transactions.serializers import TransactionSerializer
-        txs = customer.transactions.all().order_by('-date', '-created_at')
+        txs = customer.transactions.select_related('customer').order_by('-date', '-created_at')
         serializer = TransactionSerializer(txs, many=True)
         return Response({
             'customer': CustomerSerializer(customer).data,
