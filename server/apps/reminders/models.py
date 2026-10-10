@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from customers.models import Customer
+from authentication.models import Business
 from django.utils import timezone
 
 class Reminder(models.Model):
@@ -10,7 +11,8 @@ class Reminder(models.Model):
         ('missed', 'Missed'),
     )
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reminders')
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='reminders', null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reminders', null=True, blank=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='reminders')
     title = models.CharField(max_length=200)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.0)

@@ -1,13 +1,21 @@
 from rest_framework import serializers
-from .models import InventoryItem
-
+from .models import InventoryItem, StockMovement
+from authentication.utils import get_user_business
 
 class InventoryItemSerializer(serializers.ModelSerializer):
     quantity = serializers.FloatField(required=False, default=0.0, allow_null=True)
+    purchase_price = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0.00)
+    selling_price = serializers.DecimalField(source='price', max_digits=12, decimal_places=2, required=False)
+    is_low_stock = serializers.ReadOnlyField()
 
     class Meta:
         model = InventoryItem
-        fields = ['id', 'product_name', 'unit', 'price', 'quantity', 'created_at', 'updated_at']
+        fields = [
+            'id', 'product_name', 'sku', 'description', 'unit',
+            'purchase_price', 'price', 'selling_price', 'quantity',
+            'low_stock_threshold', 'is_active', 'is_low_stock',
+            'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate_product_name(self, value):
@@ -20,8 +28,12 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Price cannot be negative.")
         return value
 
+    def validate_purchase_price(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Purchase price cannot be negative.")
+        return value
+
     def validate_quantity(self, value):
-        # Quantity is OPTIONAL — allow 0 or None (means "not tracked")
         if value is None:
             return 0.0
         if value < 0:
@@ -37,21 +49,19 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        """Case-insensitive duplicate check scoped to the authenticated user."""
-        from transactions.views import get_request_user
         request = self.context.get('request')
-        user = get_request_user(request) if request else None
-        if not user:
+        if not request or not request.user:
             return attrs
-        product_name = attrs.get('product_name', '').strip().title()
 
-        # Check for duplicate product name (case-insensitive) for this user
-        qs = InventoryItem.objects.filter(
-            user=user,
-            product_name__iexact=product_name
-        )
+        product_name = attrs.get('product_name', getattr(self.instance, 'product_name', '')).strip().title()
+        business = get_user_business(request.user)
 
-        # If updating, exclude the current instance from the duplicate check
+        qs = InventoryItem.objects.filter(product_name__iexact=product_name, is_active=True)
+        if business:
+            qs = qs.filter(business=business)
+        else:
+            qs = qs.filter(user=request.user)
+
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
 
@@ -62,8 +72,29 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    def create(self, validated_data):
-        from transactions.views import get_request_user
-        request = self.context.get('request')
-        user = validated_data.pop('user', None) or (get_request_user(request) if request else None)
-        return InventoryItem.objects.create(user=user, **validated_data)
+
+class StockMovementSerializer(serializers.ModelSerializer):
+    product_name = serializers.ReadOnlyField(source='inventory_item.product_name')
+    unit = serializers.ReadOnlyField(source='inventory_item.unit')
+    created_by_username = serializers.ReadOnlyField(source='created_by.username')
+
+    class Meta:
+        model = StockMovement
+        fields = [
+            'id', 'inventory_item', 'product_name', 'unit', 'transaction',
+            'movement_type', 'quantity', 'quantity_before', 'quantity_after',
+            'reason', 'created_by_username', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class StockAdjustmentSerializer(serializers.Serializer):
+    inventory_item_id = serializers.IntegerField()
+    movement_type = serializers.ChoiceField(choices=['stock_in', 'stock_out', 'adjustment'])
+    quantity = serializers.FloatField()
+    reason = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Adjustment quantity must be greater than zero.")
+        return value

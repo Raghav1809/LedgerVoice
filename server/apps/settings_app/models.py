@@ -1,7 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
+from authentication.models import Business
 
 class UserSettings(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='settings', null=True, blank=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='app_settings')
     theme = models.CharField(max_length=20, default='light')
     currency = models.CharField(max_length=10, default='INR (₹)')

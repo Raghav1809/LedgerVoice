@@ -4,11 +4,9 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import Reminder
 from .serializers import ReminderSerializer
+from authentication.mixins import BusinessDataIsolationMixin
 
-from transactions.views import get_request_user
-
-
-class ReminderViewSet(viewsets.ModelViewSet):
+class ReminderViewSet(BusinessDataIsolationMixin, viewsets.ModelViewSet):
     serializer_class = ReminderSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -17,10 +15,12 @@ class ReminderViewSet(viewsets.ModelViewSet):
     ordering = ['due_date']
 
     def get_queryset(self):
-        user = get_request_user(self.request)
-        queryset = Reminder.objects.filter(user=user).select_related('customer')
-        
-        # Category filter: today, upcoming, missed
+        business = self.get_business()
+        if business:
+            queryset = Reminder.objects.filter(business=business).select_related('customer')
+        else:
+            queryset = Reminder.objects.filter(user=self.request.user).select_related('customer')
+
         category = self.request.query_params.get('category')
         today = timezone.now().date()
 
@@ -34,15 +34,13 @@ class ReminderViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        user = get_request_user(self.request)
+        business = self.get_business()
         customer = serializer.validated_data.get('customer')
-        title = serializer.validated_data.get('title')
         amount = serializer.validated_data.get('amount')
         due_date = serializer.validated_data.get('due_date')
 
-        # Prevent creating exact duplicate pending reminders for the same user, customer, amount, and due date
         existing = Reminder.objects.filter(
-            user=user,
+            business=business,
             customer=customer,
             amount=amount,
             due_date=due_date,
@@ -50,9 +48,9 @@ class ReminderViewSet(viewsets.ModelViewSet):
         ).first()
 
         if existing:
-            # If an exact match exists, don't insert a second duplicate row
             return
-        serializer.save(user=user)
+
+        self.perform_create_with_business(serializer)
 
     @action(detail=True, methods=['post'])
     def toggle_complete(self, request, pk=None):

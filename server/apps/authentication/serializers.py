@@ -1,11 +1,28 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import UserProfile
+from .models import UserProfile, Business, BusinessMember
+
+class BusinessSerializer(serializers.ModelSerializer):
+    owner_username = serializers.ReadOnlyField(source='owner.username')
+
+    class Meta:
+        model = Business
+        fields = ['id', 'name', 'phone', 'email', 'address', 'currency', 'owner_username', 'created_at', 'updated_at']
+
+class BusinessMemberSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source='user.username')
+    email = serializers.ReadOnlyField(source='user.email')
+
+    class Meta:
+        model = BusinessMember
+        fields = ['id', 'user', 'username', 'email', 'role', 'joined_at', 'is_active']
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    active_business_details = BusinessSerializer(source='active_business', read_only=True)
+
     class Meta:
         model = UserProfile
-        fields = ['phone', 'business_name', 'currency']
+        fields = ['phone', 'business_name', 'currency', 'active_business_details']
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(read_only=True)
@@ -32,7 +49,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        business_name = validated_data.pop('business_name', 'LedgerVoice Store')
+        b_name = validated_data.pop('business_name', '') or 'LedgerVoice Store'
         phone = validated_data.pop('phone', '')
         validated_data.pop('confirm_password')
 
@@ -43,10 +60,26 @@ class RegisterSerializer(serializers.ModelSerializer):
             last_name=validated_data.get('last_name', ''),
             password=validated_data['password']
         )
+        
+        # Create default Business & Membership for isolation
+        biz = Business.objects.create(
+            name=b_name,
+            owner=user,
+            phone=phone,
+            email=validated_data.get('email', '')
+        )
+        BusinessMember.objects.create(
+            business=biz,
+            user=user,
+            role='OWNER',
+            is_active=True
+        )
+
         UserProfile.objects.create(
             user=user,
-            business_name=business_name or 'LedgerVoice Store',
-            phone=phone
+            business_name=b_name,
+            phone=phone,
+            active_business=biz
         )
         return user
 

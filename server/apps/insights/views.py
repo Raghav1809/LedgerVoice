@@ -1,32 +1,42 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q, DecimalField
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import datetime, timedelta
 from customers.models import Customer
 from transactions.models import Transaction
-
-
-from transactions.views import get_local_user
+from inventory.models import InventoryItem
+from authentication.utils import get_user_business
 
 
 class InsightSummaryView(APIView):
     """
     PROTECTED DASHBOARD METRICS API (DO NOT MODIFY DATA CONTRACT)
-    Serves the primary VoiceKhata dashboard Overview.
+    Serves the primary VoiceKhata/LedgerVoice dashboard Overview.
+    Scoped to the authenticated user's Business.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        customers = Customer.objects.filter(user=user)
-        transactions = Transaction.objects.filter(user=user)
+        business = get_user_business(user)
+
+        if business:
+            customers = Customer.objects.filter(business=business, is_active=True)
+            transactions = Transaction.objects.filter(business=business)
+            inventory_qs = InventoryItem.objects.filter(business=business, is_active=True)
+        else:
+            customers = Customer.objects.filter(user=user, is_active=True)
+            transactions = Transaction.objects.filter(user=user)
+            inventory_qs = InventoryItem.objects.filter(user=user, is_active=True)
 
         total_customers = customers.count()
         total_transactions = transactions.count()
+        total_inventory_items = inventory_qs.count()
+        low_stock_count = len([i for i in inventory_qs if i.is_low_stock])
 
-        # Calculate Credit (gave out) vs Payment (received) — sales separate
         total_credit = float(transactions.filter(transaction_type='credit').aggregate(total=Sum('amount'))['total'] or 0.0)
         total_payments = float(transactions.filter(transaction_type='payment').aggregate(total=Sum('amount'))['total'] or 0.0)
         total_sales = float(transactions.filter(transaction_type='sales').aggregate(total=Sum('amount'))['total'] or 0.0)
@@ -34,7 +44,7 @@ class InsightSummaryView(APIView):
         pending_amount = max(0.0, total_credit - total_payments)
         recovered_amount = min(total_credit, total_payments)
 
-        # Monthly trends (last 6 months) — single batch query
+        # Monthly trends (last 6 months)
         today = timezone.now().date()
         monthly_labels = []
         monthly_credits = []
@@ -50,7 +60,6 @@ class InsightSummaryView(APIView):
             monthly_credits.append(0.0)
             monthly_payments.append(0.0)
 
-        # Single query for all transactions in the 6-month window
         earliest_date = month_ranges[0][0]
         recent_tx_values = list(transactions.filter(date__gte=earliest_date).values('date', 'transaction_type', 'amount'))
         for tx in recent_tx_values:
@@ -65,13 +74,14 @@ class InsightSummaryView(APIView):
                         monthly_payments[idx] += tx_amt
                     break
 
-        # Recent 5 transactions with select_related
         from transactions.serializers import TransactionSerializer
         recent_transactions = TransactionSerializer(transactions.select_related('customer').order_by('-date', '-created_at')[:5], many=True).data
 
         return Response({
             'total_customers': total_customers,
             'total_transactions': total_transactions,
+            'total_inventory_items': total_inventory_items,
+            'low_stock_count': low_stock_count,
             'total_credit': total_credit,
             'total_payments': total_payments,
             'total_sales': total_sales,
@@ -91,11 +101,14 @@ class AdvancedAnalyticsView(APIView):
     """
     READ-ONLY ADVANCED FINANCIAL ANALYTICS API
     Aggregates transactions, product sales, expenses, cash flows, and credit recovery metrics.
+    Scoped to the authenticated user's Business.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         user = request.user
+        business = get_user_business(user)
+
         qp = getattr(request, 'query_params', request.GET)
         time_filter = qp.get('time_filter', 'month')
         start_date_str = qp.get('start_date')
@@ -103,7 +116,6 @@ class AdvancedAnalyticsView(APIView):
 
         today = timezone.now().date()
 
-        # Date range filtering logic
         start_date = None
         end_date = None
 
@@ -127,15 +139,19 @@ class AdvancedAnalyticsView(APIView):
                 start_date = today - timedelta(days=30)
                 end_date = today
 
-        # Base user transactions
-        all_txs = Transaction.objects.filter(user=user).select_related('customer')
+        if business:
+            all_txs = Transaction.objects.filter(business=business).select_related('customer')
+            customers_qs = Customer.objects.filter(business=business, is_active=True)
+        else:
+            all_txs = Transaction.objects.filter(user=user).select_related('customer')
+            customers_qs = Customer.objects.filter(user=user, is_active=True)
+
         filtered_txs = all_txs
         if start_date:
             filtered_txs = filtered_txs.filter(date__gte=start_date)
         if end_date:
             filtered_txs = filtered_txs.filter(date__lte=end_date)
 
-        # 1. Summary KPIs
         sales_txs = filtered_txs.filter(transaction_type='sales')
         expense_txs = filtered_txs.filter(transaction_type='expense')
         payment_txs = filtered_txs.filter(transaction_type__in=['payment', 'cash_in'])
@@ -149,19 +165,16 @@ class AdvancedAnalyticsView(APIView):
         total_payments = float(payment_txs.aggregate(s=Sum('amount'))['s'] or 0.0)
         total_credit = float(credit_txs.aggregate(s=Sum('amount'))['s'] or 0.0)
 
-        # Lifetime credit recovery calculation
         all_credit = float(all_txs.filter(transaction_type='credit').aggregate(s=Sum('amount'))['s'] or 0.0)
         all_payment = float(all_txs.filter(transaction_type='payment').aggregate(s=Sum('amount'))['s'] or 0.0)
         outstanding_credit = max(0.0, all_credit - all_payment)
         recovered_credit = min(all_credit, all_payment)
         recovery_rate = round((recovered_credit / all_credit * 100), 1) if all_credit > 0 else 100.0
 
-        # Cash Flow Calculations
         money_in = total_sales + total_payments
         money_out = total_expense + total_credit
         net_cash_flow = round(money_in - money_out, 2)
 
-        # 2. Product Performance (from sales items_data)
         product_stats = {}
         for tx in sales_txs:
             items = tx.items_data
@@ -179,8 +192,6 @@ class AdvancedAnalyticsView(APIView):
         top_products_by_revenue = sorted(product_stats.values(), key=lambda x: x['revenue'], reverse=True)[:10]
         top_products_by_qty = sorted(product_stats.values(), key=lambda x: x['qty'], reverse=True)[:10]
 
-        # 3. Customer Performance
-        customers_qs = Customer.objects.filter(user=user)
         active_customers = customers_qs.count()
 
         cust_sales = {}
@@ -190,9 +201,6 @@ class AdvancedAnalyticsView(APIView):
                 cust_sales[c_name] = cust_sales.get(c_name, 0.0) + float(tx.amount)
         top_customers = sorted([{'name': k, 'amount': round(v, 2)} for k, v in cust_sales.items()], key=lambda x: x['amount'], reverse=True)[:10]
 
-        # Outstanding customers (Batch annotated in 1 query)
-        from django.db.models import Q, DecimalField
-        from django.db.models.functions import Coalesce
         credit_q = Q(transactions__transaction_type__in=['credit', 'sales'])
         payment_q = Q(transactions__transaction_type__in=['payment', 'expense'])
         annotated_customers = customers_qs.annotate(
@@ -211,20 +219,17 @@ class AdvancedAnalyticsView(APIView):
                 })
         outstanding_customers.sort(key=lambda x: x['outstanding'], reverse=True)
 
-        # 4. Expense Categories Breakdown
         expense_cats = {}
         for tx in expense_txs:
             cat = (tx.description or 'General Expense').strip().title()
             expense_cats[cat] = expense_cats.get(cat, 0.0) + float(tx.amount)
         top_expense_categories = sorted([{'category': k, 'amount': round(v, 2)} for k, v in expense_cats.items()], key=lambda x: x['amount'], reverse=True)[:10]
 
-        # 5. Transaction Type Mix
         tx_mix = {}
         for tx in filtered_txs:
             t = tx.transaction_type.upper()
             tx_mix[t] = tx_mix.get(t, 0) + 1
 
-        # 6. Weekly Day-of-Week Activity (Mon-Sun)
         day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         day_sales = [0.0] * 7
         day_expenses = [0.0] * 7
@@ -241,7 +246,6 @@ class AdvancedAnalyticsView(APIView):
         max_sales_val = max(day_sales)
         best_sales_day = day_names[day_sales.index(max_sales_val)] if max_sales_val > 0 else 'N/A'
 
-        # 7. Trend Progression (Dynamic Granularity)
         if time_filter in ['today', 'week'] or (start_date and end_date and (end_date - start_date).days <= 31):
             s_date = start_date or (today - timedelta(days=30))
             e_date = end_date or today
@@ -301,7 +305,6 @@ class AdvancedAnalyticsView(APIView):
                     elif tx.transaction_type == 'credit':
                         trend_credits[idx] += amt
 
-        # 8. Key Business Insights Bullets
         insights_bullets = []
         if total_sales > 0:
             insights_bullets.append(f"Generated ₹{total_sales:,.2f} in sales revenue across {sales_count} transaction(s).")

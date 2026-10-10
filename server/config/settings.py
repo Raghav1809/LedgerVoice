@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from datetime import timedelta
 import dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 # Load environment variables
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -68,9 +69,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# ─── Database Configuration (PostgreSQL Native with Cloud/Live Support) ────────
+# ─── Database Configuration (PostgreSQL Required) ──────────────────────────────────
 DATABASE_URL = os.getenv('DATABASE_URL')
-DB_ENGINE = os.getenv('DB_ENGINE', '')
 DB_NAME = os.getenv('DB_NAME') or os.getenv('POSTGRES_DB', 'voicekhata_db')
 DB_USER = os.getenv('DB_USER') or os.getenv('POSTGRES_USER', 'postgres')
 DB_PASSWORD = os.getenv('DB_PASSWORD') or os.getenv('POSTGRES_PASSWORD', 'postgres')
@@ -81,21 +81,19 @@ DB_SSLMODE = os.getenv('DB_SSLMODE')
 if DATABASE_URL:
     try:
         import dj_database_url
-        DATABASES = {
-            'default': dj_database_url.parse(
-                DATABASE_URL,
-                conn_max_age=600,
-                ssl_require=(DB_SSLMODE == 'require' or 'sslmode=require' in DATABASE_URL.lower())
-            )
-        }
+        parsed_db = dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=(DB_SSLMODE == 'require' or 'sslmode=require' in DATABASE_URL.lower())
+        )
+        if parsed_db:
+            parsed_db['ENGINE'] = 'django.db.backends.postgresql'
+            DATABASES = {'default': parsed_db}
+        else:
+            raise ValueError("Invalid DATABASE_URL provided.")
     except Exception as e:
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
-            }
-        }
-elif DB_ENGINE == 'django.db.backends.postgresql' or DB_NAME or os.getenv('POSTGRES_DB'):
+        raise ImproperlyConfigured(f"Failed to configure PostgreSQL from DATABASE_URL: {e}")
+else:
     db_options = {}
     if DB_SSLMODE:
         db_options['sslmode'] = DB_SSLMODE
@@ -112,18 +110,6 @@ elif DB_ENGINE == 'django.db.backends.postgresql' or DB_NAME or os.getenv('POSTG
             'PORT': DB_PORT,
             'CONN_MAX_AGE': 600,
             'OPTIONS': db_options,
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'voicekhata_db',
-            'USER': 'postgres',
-            'PASSWORD': 'postgres',
-            'HOST': 'localhost',
-            'PORT': '5432',
-            'CONN_MAX_AGE': 600,
         }
     }
 
