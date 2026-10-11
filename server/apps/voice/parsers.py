@@ -161,19 +161,19 @@ def parse_single_item_segment(segment):
     # Priority 1: Check if the segment contains a RATE indicator (at, each, per, costing, cost of, /)
     # Rate Pattern A: QTY + UNIT + optional("of") + NAME + at/costing/each/per + RATE
     pat_a_rate = re.compile(
-        r'^(?P<qty>' + QTY_EXPR + r')\s*(?P<unit>' + UNIT_PATTERN + r')\s+(?:of\s+)?(?P<name>[a-zA-Z][a-zA-Z0-9\s\-\u2019]{0,30}?)\s+(?:at|costing|for|each|per|/)\s+(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?P<rate>\d+(?:\.\d{1,2})?)(?:\s*(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?:per\s+\w+|each|/.*))?$',
+        r'^(?P<qty>' + QTY_EXPR + r')\s*(?P<unit>' + UNIT_PATTERN + r')\s+(?:of\s+)?(?P<name>[a-zA-Z][a-zA-Z0-9\s\-\u2019]{0,30}?)\s+(?:at|costing|each|per|/)\s+(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?P<rate>\d+(?:\.\d{1,2})?)(?:\s*(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?:per\s+\w+|each|/.*))?$',
         re.IGNORECASE
     )
 
     # Rate Pattern B: QTY + NAME + at/costing/each/per + RATE
     pat_b_rate = re.compile(
-        r'^(?P<qty>' + QTY_EXPR + r')\s+(?P<name>[a-zA-Z][a-zA-Z0-9\s\-\u2019]{0,30}?)\s+(?:at|costing|for|each|per|/)\s+(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?P<rate>\d+(?:\.\d{1,2})?)(?:\s*(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?:per\s+\w+|each|/.*))?$',
+        r'^(?P<qty>' + QTY_EXPR + r')\s+(?P<name>[a-zA-Z][a-zA-Z0-9\s\-\u2019]{0,30}?)\s+(?:at|costing|each|per|/)\s+(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?P<rate>\d+(?:\.\d{1,2})?)(?:\s*(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?:per\s+\w+|each|/.*))?$',
         re.IGNORECASE
     )
 
     # Rate Pattern C: NAME + QTY + UNIT + at/costing/each/per + RATE
     pat_c_rate = re.compile(
-        r'^(?P<name>[a-zA-Z][a-zA-Z0-9\s\-\u2019]{0,30}?)\s+(?P<qty>' + QTY_EXPR + r')\s*(?P<unit>' + UNIT_PATTERN + r')\s+(?:at|costing|for|each|per|/)\s+(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?P<rate>\d+(?:\.\d{1,2})?)(?:\s*(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?:per\s+\w+|each|/.*))?$',
+        r'^(?P<name>[a-zA-Z][a-zA-Z0-9\s\-\u2019]{0,30}?)\s+(?P<qty>' + QTY_EXPR + r')\s*(?P<unit>' + UNIT_PATTERN + r')\s+(?:at|costing|each|per|/)\s+(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?P<rate>\d+(?:\.\d{1,2})?)(?:\s*(?:rs\.?|rupees?|inr|\u20b9|\$)?\s*(?:per\s+\w+|each|/.*))?$',
         re.IGNORECASE
     )
 
@@ -378,6 +378,33 @@ def extract_sales_customer(text):
             text = text[m_lead.end():].strip()
             return text, customer_name
 
+    # 4. Middle/explicit 'to <Name>' followed by credit / payable / due: e.g. "to Ramesh on credit, payable by..."
+    to_credit_pat = re.compile(
+        r'\b(?:sold\s+to|sale\s+to|to|for|given\s+to)\s+([a-zA-Z][a-zA-Z\s]{0,20}?)\s+(?:on\s+credit|payable|due\b)',
+        re.IGNORECASE
+    )
+    m_to_credit = to_credit_pat.search(text)
+    if m_to_credit:
+        raw_name = m_to_credit.group(1).strip().title()
+        if raw_name and raw_name.lower() not in UNIT_MAP and raw_name.lower() not in WORD_TO_NUM:
+            customer_name = raw_name
+            # Remove "to <Name>" clause from text so items parser doesn't get confused
+            text = text[:m_to_credit.start()].strip() + ' ' + text[m_to_credit.end() - len('on credit') - 1:].strip()
+            return text.strip(), customer_name
+
+    # 5. Leading subject: e.g. "Ramesh bought 2 kg rice..."
+    lead_subject_pat = re.compile(
+        r'^\s*([a-zA-Z][a-zA-Z]{1,20})\s+(?:bought|purchased|ordered)\b',
+        re.IGNORECASE
+    )
+    m_subj = lead_subject_pat.search(text)
+    if m_subj:
+        raw_name = m_subj.group(1).strip().title()
+        if raw_name.lower() not in {'i', 'he', 'she', 'they', 'we', 'who', 'items', 'item'}:
+            customer_name = raw_name
+            text = text[m_subj.end():].strip()
+            return text, customer_name
+
     return text, customer_name
 
 
@@ -389,6 +416,9 @@ def parse_sales_items_rule_based(transcript):
     """
     cleaned = strip_sales_prefix(transcript)
     cleaned, _ = extract_sales_customer(cleaned)
+    # Strip credit and due date clauses before splitting into items so they are not parsed as products
+    cleaned = re.sub(r'\b(?:on\s+credit|credit)\b', '', cleaned, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r'\b(?:payable\s+by|due\s+(?:on|by|date)?|pay\s+by|will\s+pay\s+by)\s+.*$', '', cleaned, flags=re.IGNORECASE).strip()
     cleaned = re.sub(r'^(?:sold|sell|sale|buying|bought|buy)\s+', '', cleaned, flags=re.IGNORECASE).strip()
 
     # Protect quantity phrases containing "and" (e.g. "one and half", "one and a half", "1 and half", "2 and half")
@@ -459,11 +489,11 @@ def calculate_due_date(text, today=None):
     # 1. Specific dates like "1 september", "september 1st", "1st of september"
     month_names_pattern = r'(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)'
     
-    # Match "September 1" or "September 1st" or "September the 1st"
-    m_d_pattern = re.compile(rf'\b{month_names_pattern}\s+(?:the\s+)?(\d+)(?:st|nd|rd|th)?\b', re.IGNORECASE)
+    # Match "September 1" or "September 1st 2026"
+    m_d_pattern = re.compile(rf'\b{month_names_pattern}\s+(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{{4}}))?\b', re.IGNORECASE)
     
-    # Match "1 September" or "1st September" or "1st of September"
-    d_m_pattern = re.compile(rf'\b(\d+)(?:st|nd|rd|th)?\s+(?:of\s+)?{month_names_pattern}\b', re.IGNORECASE)
+    # Match "1 September" or "20 October 2026"
+    d_m_pattern = re.compile(rf'\b(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:of\s+)?{month_names_pattern}(?:\s*,?\s*(\d{{4}}))?\b', re.IGNORECASE)
     
     m_d_match = m_d_pattern.search(text)
     d_m_match = d_m_pattern.search(text)
@@ -472,20 +502,23 @@ def calculate_due_date(text, today=None):
         if m_d_match:
             month_str = m_d_match.group(1)
             day_str = m_d_match.group(2)
+            year_str = m_d_match.group(3)
         else:
             day_str = d_m_match.group(1)
             month_str = d_m_match.group(2)
+            year_str = d_m_match.group(3)
             
         month_val = MONTH_MAP.get(month_str.lower())
         day_val = int(day_str)
         
         if month_val and 1 <= day_val <= 31:
             try:
-                # Construct date for current year
-                target_date = date(year=today.year, month=month_val, day=day_val)
-                # If the date has already passed for the current year, set to next year
-                if target_date < today:
-                    target_date = date(year=today.year + 1, month=month_val, day=day_val)
+                if year_str:
+                    target_date = date(year=int(year_str), month=month_val, day=day_val)
+                else:
+                    target_date = date(year=today.year, month=month_val, day=day_val)
+                    if target_date < today:
+                        target_date = date(year=today.year + 1, month=month_val, day=day_val)
                 return target_date.strftime('%Y-%m-%d')
             except ValueError:
                 # Invalid date (e.g. 31st Feb)
@@ -812,6 +845,8 @@ def parse_with_spacy(transcript):
     
     if is_sales:
         clean_text_for_items, sales_cust = extract_sales_customer(corrected_text)
+        due_date = calculate_due_date(corrected_text)
+        is_credit = bool(re.search(r'\b(?:on\s+credit|credit|borrowed|will\s+pay|payable)\b', corrected_text, re.IGNORECASE))
         items = parse_sales_items_rule_based(clean_text_for_items)
                 
         if items:
@@ -821,10 +856,12 @@ def parse_with_spacy(transcript):
                 "customer_name": sales_cust,
                 "amount": total_amount,
                 "transaction_type": "sales",
-                "due_date": None,
+                "payment_status": "credit" if is_credit else "cash",
+                "is_credit": is_credit,
+                "due_date": due_date,
                 "notes": corrected_text,
                 "date": today_str,
-                "status": "completed",
+                "status": "pending" if is_credit else "completed",
                 "items": items,
                 "parser_used": "spacy-nlp"
             }
@@ -1012,6 +1049,8 @@ def parse_speech_transcript(transcript):
         corrected_text = autocorrect_transcript(cleaned_transcript)
         if is_sales_transcript(corrected_text):
             clean_for_items, rule_cust = extract_sales_customer(corrected_text)
+            due_date = calculate_due_date(corrected_text)
+            is_credit = bool(re.search(r'\b(?:on\s+credit|credit|borrowed|will\s+pay|payable)\b', corrected_text, re.IGNORECASE))
             items = parse_sales_items_rule_based(clean_for_items)
             if items:
                 total = round(sum(item['total'] for item in items), 2)
@@ -1020,10 +1059,12 @@ def parse_speech_transcript(transcript):
                     "customer_name": rule_cust or detected_customer,
                     "amount": total,
                     "transaction_type": "sales",
-                    "due_date": None,
+                    "payment_status": "credit" if is_credit else "cash",
+                    "is_credit": is_credit,
+                    "due_date": due_date,
                     "notes": corrected_text,
                     "date": today,
-                    "status": "completed",
+                    "status": "pending" if is_credit else "completed",
                     "items": items,
                     "is_sales": True,
                     "parser_used": "rule-based-sales"

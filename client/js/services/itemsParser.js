@@ -93,7 +93,7 @@ app.factory('itemsParserService', ['inventoryService', function(inventoryService
     segment = segment.trim();
 
     // 1. Rate indicator pattern: "10 liters oil at 50 rupees per liter"
-    var patRate = new RegExp('^(' + QTY_REGEX_PART + ')\\s*(' + UNIT_REGEX_PART + ')?\\s+(?:of\\s+)?([a-zA-Z][a-zA-Z0-9\\s\\-’\']{0,30}?)\\s+(?:at|costing|for|each|per|\\/)\\s*(?:rs\\.?|rupees?|inr|₹|\\$)?\\s*(\\d+(?:\\.\\d{1,2})?)(?:\\s*(?:rs\\.?|rupees?|inr|₹|\\$)?\\s*(?:per\\s+\\w+|each|\\/.*))?$', 'i');
+    var patRate = new RegExp('^(' + QTY_REGEX_PART + ')\\s*(' + UNIT_REGEX_PART + ')?\\s+(?:of\\s+)?([a-zA-Z][a-zA-Z0-9\\s\\-’\']{0,30}?)\\s+(?:at|costing|each|per|\\/)\\s*(?:rs\\.?|rupees?|inr|₹|\\$)?\\s*(\\d+(?:\\.\\d{1,2})?)(?:\\s*(?:rs\\.?|rupees?|inr|₹|\\$)?\\s*(?:per\\s+\\w+|each|\\/.*))?$', 'i');
     var mRate = patRate.exec(segment);
     if (mRate) {
       var qtyVal = parseQuantityVal(mRate[1]);

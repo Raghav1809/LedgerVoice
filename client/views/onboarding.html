@@ -1,0 +1,340 @@
+<div class="anim-fade-up">
+
+  <!-- ── Top Header & 6-Exercise Stepper ──────────────────────── -->
+  <div class="glass-card mb-4 p-4 border-0 shadow-sm" style="border-radius: var(--r-lg);">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge rounded-pill bg-primary px-3 py-1" style="font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">
+            <i class="fa-solid fa-shield-halved me-1"></i> Mandatory Calibration
+          </span>
+          <span class="badge rounded-pill bg-light text-dark border px-2 py-1" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-microphone text-primary me-1"></i> Voice Engine Setup
+          </span>
+        </div>
+        <h2 class="fw-bold mb-1" style="font-family: 'Outfit', sans-serif; letter-spacing: -0.02em;">
+          Voice Calibration &amp; Speech Training
+        </h2>
+        <p class="text-muted mb-0" style="font-size: 0.9rem;">
+          To ensure accurate bookkeeping, LedgerVoice requires completing all {{ totalExercises }} essential calibration commands before accessing the dashboard.
+        </p>
+      </div>
+
+      <!-- Overall Stepper Counter -->
+      <div class="text-end">
+        <div class="small text-muted fw-semibold mb-1">Overall Progress</div>
+        <div class="h4 mb-0 fw-bold text-primary">
+          <span ng-if="!isCompleted">Exercise {{ currentIndex + 1 }} of {{ totalExercises }}</span>
+          <span ng-if="isCompleted" class="text-success"><i class="fa-solid fa-circle-check me-1"></i> Completed</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress mb-2" style="height: 10px; border-radius: 999px; background: rgba(37,99,235,0.1);">
+      <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated"
+           role="progressbar"
+           ng-style="{ 'width': getProgressPercentage() + '%' }">
+      </div>
+    </div>
+
+    <!-- Stepper Dots -->
+    <div class="d-flex justify-content-between text-center pt-2">
+      <div ng-repeat="ex in exercises" class="d-flex flex-column align-items-center" style="flex: 1; max-width: 160px;">
+        <div class="rounded-circle d-flex align-items-center justify-content-center mb-1"
+             style="width: 28px; height: 28px; font-size: 0.8rem; font-weight: bold; transition: all 0.2s ease;"
+             ng-class="{
+               'bg-success text-white shadow-sm': progress.completed_exercises[ex.id],
+               'bg-primary text-white shadow-sm ring-primary': currentIndex === $index && !progress.completed_exercises[ex.id],
+               'bg-light text-muted border': currentIndex !== $index && !progress.completed_exercises[ex.id]
+             }">
+          <i ng-if="progress.completed_exercises[ex.id]" class="fa-solid fa-check small"></i>
+          <span ng-if="!progress.completed_exercises[ex.id]">{{ $index + 1 }}</span>
+        </div>
+        <div class="d-none d-md-block text-truncate small fw-semibold"
+             style="max-width: 90px; font-size: 0.72rem;"
+             ng-class="currentIndex === $index ? 'text-primary' : 'text-muted'">
+          {{ ex.title }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- ACTIVE EXERCISE CARD (Shows exactly 1 exercise at a time)   -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div ng-if="!isCompleted" class="row justify-content-center">
+    <div class="col-lg-9 col-xl-8">
+      <div class="glass-card p-4 p-md-5 shadow-md" style="border-radius: var(--r-lg);">
+
+        <!-- Exercise Header -->
+        <div class="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom flex-wrap gap-2">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-primary text-white">Command {{ getCurrentExercise().number }} of {{ totalExercises }}</span>
+              <span ng-if="isCurrentExercisePassed()" class="badge bg-success text-white">
+                <i class="fa-solid fa-check me-1"></i> Passed
+              </span>
+            </div>
+            <h3 class="fw-bold mb-1" style="font-family: 'Outfit', sans-serif;">
+              {{ getCurrentExercise().title }}
+            </h3>
+            <p class="text-muted small mb-0">{{ getCurrentExercise().hint }}</p>
+          </div>
+        </div>
+
+        <!-- ── Target Spoken Phrase Card ────────────────────────── -->
+        <div class="card p-4 mb-4 border-0"
+             style="background: linear-gradient(135deg, rgba(37,99,235,0.04) 0%, rgba(124,58,237,0.04) 100%); border-radius: var(--r-md); border-left: 5px solid var(--primary) !important;">
+          <div class="small fw-semibold text-uppercase text-primary mb-1" style="letter-spacing: 0.05em;">
+            <i class="fa-solid fa-bullhorn me-1"></i> Speak this command clearly into your microphone:
+          </div>
+          <div class="display-6 fw-bold text-dark my-2" style="font-family: 'Outfit', sans-serif; font-size: 1.6rem; letter-spacing: -0.01em;">
+            &ldquo;{{ getCurrentExercise().phrase }}&rdquo;
+          </div>
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2 pt-2 border-top">
+            <span class="text-muted small">
+              <i class="fa-regular fa-lightbulb text-warning me-1"></i>
+              Speak at a steady pace and pronounce numbers and units clearly.
+            </span>
+            <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                    ng-click="fillSamplePhrase()"
+                    title="Populate test phrase directly for accessibility/testing">
+              <i class="fa-solid fa-keyboard me-1"></i> Quick Test Fill
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Live Recording Interaction Area ──────────────────── -->
+        <div class="text-center py-3 mb-4">
+          <button class="btn rounded-circle shadow-lg p-0"
+                  ng-click="toggleRecording()"
+                  ng-disabled="isEvaluating"
+                  ng-class="isRecording ? 'btn-danger shadow-glow-danger' : 'btn-gradient-blue'"
+                  style="width: 88px; height: 88px; transition: all 0.25s ease;"
+                  title="{{ isRecording ? 'Click to Stop Recording' : 'Click to Speak' }}">
+            <i class="fa-solid fa-2x" ng-class="isRecording ? 'fa-stop text-white' : 'fa-microphone text-white'"></i>
+          </button>
+
+          <div class="mt-3">
+            <div ng-if="isRecording" class="fw-bold text-danger animate-pulse">
+              <i class="fa-solid fa-circle fa-beat text-danger me-1"></i> Listening to your speech... Click to finish
+            </div>
+            <div ng-if="!isRecording && !isEvaluating" class="text-muted small">
+              Click the microphone button and speak the command aloud
+            </div>
+            <div ng-if="isEvaluating" class="text-primary small fw-semibold">
+              <i class="fa-solid fa-spinner fa-spin me-1"></i> Validating command with speech parser...
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Speech Recognition Transcript Card ────────────────── -->
+        <div class="card p-3 mb-4 border-0" style="background: #f8fafc; border-radius: var(--r-md);">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small fw-semibold text-muted">Recognized Speech Text:</span>
+            <span class="small text-muted" ng-if="isRecording">
+              <i class="fa-solid fa-wave-square text-primary fa-fade"></i> Live speech capture
+            </span>
+          </div>
+
+          <div class="p-2 text-dark" style="font-size: 1.1rem; min-height: 48px;">
+            <span class="fw-semibold">{{ liveTranscript }}</span>
+            <span class="text-muted fst-italic">{{ interimTranscript }}</span>
+            <span ng-if="!liveTranscript && !interimTranscript" class="text-muted small fst-italic">
+              (Your spoken words will appear here as you talk...)
+            </span>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-2 pt-2 border-top" ng-if="liveTranscript">
+            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" ng-click="retryExercise()">
+              <i class="fa-solid fa-rotate-left me-1"></i> Clear &amp; Retry
+            </button>
+            <button class="btn btn-sm btn-primary rounded-pill px-4" ng-click="validateTranscript()" ng-disabled="isEvaluating">
+              <i class="fa-solid fa-check me-1"></i> Submit &amp; Validate
+            </button>
+          </div>
+        </div>
+
+        <!-- ── SUCCESS FEEDBACK CARD (Passed) ───────────────────── -->
+        <div ng-if="validationResult && validationResult.passed" class="card p-4 border-0 anim-fade-up shadow-sm mb-4 bg-success-subtle border-success"
+             style="border-radius: var(--r-md);">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fa-solid fa-circle-check fa-2x text-success"></i>
+            <div>
+              <h5 class="fw-bold mb-0 text-success">Command Successfully Validated!</h5>
+              <span class="small text-muted">All products, quantities, units, and amounts were extracted accurately without mixing details.</span>
+            </div>
+          </div>
+
+          <!-- Items Breakdown -->
+          <div ng-if="validationResult.parsed.items && validationResult.parsed.items.length > 0" class="card border-0 bg-white p-3 mb-3">
+            <div class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 0.72rem;">
+              <i class="fa-solid fa-boxes-stacked me-1"></i> Extracted Items Breakdown ({{ validationResult.parsed.items.length }} Items)
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-borderless align-middle mb-0" style="font-size: 0.85rem;">
+                <thead class="table-light">
+                  <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Total Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr ng-repeat="item in validationResult.parsed.items">
+                    <td class="fw-bold">{{ item.name }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ item.unit }}</span></td>
+                    <td class="fw-bold text-primary">₹{{ item.total }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Action to Next Exercise -->
+          <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+            <button class="btn btn-success btn-lg rounded-pill px-5 shadow-sm" ng-click="nextExercise()">
+              <span ng-if="currentIndex < totalExercises - 1">Proceed to Exercise {{ currentIndex + 2 }} <i class="fa-solid fa-arrow-right ms-1"></i></span>
+              <span ng-if="currentIndex >= totalExercises - 1">Finish Calibration <i class="fa-solid fa-award ms-1"></i></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── RETRY / ERROR FEEDBACK CARD (Failed) ─────────────── -->
+        <div ng-if="validationResult && !validationResult.passed" class="card p-4 border-0 anim-fade-up shadow-sm mb-4 bg-danger-subtle border-danger"
+             style="border-radius: var(--r-md);">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="fa-solid fa-triangle-exclamation fa-2x text-danger"></i>
+            <div>
+              <h5 class="fw-bold mb-0 text-danger">Calibration Mismatch &mdash; Retry Required</h5>
+              <span class="small text-muted">The recognized command did not match all expected values. Please review the details below and retry:</span>
+            </div>
+          </div>
+
+          <!-- Error Explanation Message -->
+          <div class="alert alert-danger mb-3 p-3 small" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-1"></i> <strong>What went wrong:</strong> {{ feedbackError }}
+          </div>
+
+          <!-- Field Match Breakdown -->
+          <div class="row g-2 mb-3">
+            <div class="col-sm-6" ng-repeat="(fieldName, data) in validationResult.fields">
+              <div class="p-2 rounded-2 bg-white border" style="font-size: 0.8rem;">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="fw-bold text-muted text-uppercase" style="font-size: 0.7rem;">{{ fieldName.replace('_', ' ') }}</span>
+                  <i class="fa-solid" ng-class="data.match ? 'fa-check text-success' : 'fa-xmark text-danger'"></i>
+                </div>
+                <div class="small">
+                  <span>Expected: <strong>{{ (fieldName === 'amount' ? '₹' : '') + data.expected }}</strong></span>
+                  <br>
+                  <span ng-class="data.match ? 'text-success' : 'text-danger'">Recognized: <strong>{{ data.actual !== null && data.actual !== undefined ? ((fieldName === 'amount' ? '₹' : '') + data.actual) : 'None' }}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Items Detail Breakdown on Mismatch -->
+          <div ng-if="validationResult.items_detail && validationResult.items_detail.length > 0" class="card border-0 bg-white p-3 mb-3">
+            <div class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 0.72rem;">
+              <i class="fa-solid fa-list-check me-1"></i> Per-Item Verification Details
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-borderless align-middle mb-0" style="font-size: 0.82rem;">
+                <thead class="table-light">
+                  <tr>
+                    <th>Item</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr ng-repeat="detail in validationResult.items_detail">
+                    <td class="fw-semibold">#{{ detail.index + 1 }}</td>
+                    <td>
+                      <span ng-class="detail.fields.name.match ? 'text-dark' : 'text-danger fw-bold'">{{ detail.fields.name.actual || 'Missing' }}</span>
+                      <small class="text-muted d-block" ng-if="!detail.fields.name.match">(exp: {{ detail.fields.name.expected }})</small>
+                    </td>
+                    <td>
+                      <span ng-class="detail.fields.qty.match ? 'text-dark' : 'text-danger fw-bold'">{{ detail.fields.qty.actual !== null ? detail.fields.qty.actual : '-' }}</span>
+                      <small class="text-muted d-block" ng-if="!detail.fields.qty.match">(exp: {{ detail.fields.qty.expected }})</small>
+                    </td>
+                    <td>
+                      <span ng-class="detail.fields.unit.match ? 'badge bg-light text-dark border' : 'badge bg-danger-subtle text-danger border-danger'">{{ detail.fields.unit.actual || '-' }}</span>
+                      <small class="text-muted d-block" ng-if="!detail.fields.unit.match">(exp: {{ detail.fields.unit.expected }})</small>
+                    </td>
+                    <td>
+                      <span ng-class="detail.fields.amount.match ? 'text-primary fw-bold' : 'text-danger fw-bold'">₹{{ detail.fields.amount.actual !== null ? detail.fields.amount.actual : 0 }}</span>
+                      <small class="text-muted d-block" ng-if="!detail.fields.amount.match">(exp: ₹{{ detail.fields.amount.expected }})</small>
+                    </td>
+                    <td>
+                      <i class="fa-solid" ng-class="detail.match ? 'fa-check text-success' : 'fa-xmark text-danger'"></i>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Retry Button -->
+          <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+            <button class="btn btn-outline-danger btn-lg rounded-pill px-4 shadow-sm" ng-click="retryExercise()">
+              <i class="fa-solid fa-rotate-left me-1"></i> Retry Exercise
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- COMPLETION SCREEN (Displayed only after 6th exercise passed) -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div ng-if="isCompleted" class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="glass-card p-4 p-md-5 text-center shadow-lg" style="border-radius: var(--r-xl);">
+        <div class="d-inline-flex align-items-center justify-content-center mb-4"
+             style="width: 96px; height: 96px; border-radius: 50%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; box-shadow: 0 12px 30px rgba(16,185,129,0.35);">
+          <i class="fa-solid fa-award fa-3x"></i>
+        </div>
+
+        <h2 class="fw-bold mb-2" style="font-family: 'Outfit', sans-serif;">
+          Voice Calibration Complete!
+        </h2>
+        <p class="text-muted lead mb-4" style="font-size: 1.1rem;">
+          You have successfully completed all {{ totalExercises }} essential calibration commands. LedgerVoice is now calibrated to your voice and ready for daily bookkeeping.
+        </p>
+
+        <!-- Summary Statistics -->
+        <div class="row g-3 justify-content-center mb-5">
+          <div class="col-6 col-md-4">
+            <div class="p-3 bg-light rounded-3">
+              <div class="h3 fw-bold text-success mb-0">{{ totalExercises }} / {{ totalExercises }}</div>
+              <div class="small text-muted">Commands Passed</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-4">
+            <div class="p-3 bg-light rounded-3">
+              <div class="h3 fw-bold text-primary mb-0">100%</div>
+              <div class="small text-muted">Accuracy Verified</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action to Enter Dashboard -->
+        <div class="d-flex flex-wrap justify-content-center gap-3">
+          <button class="btn btn-gradient-blue btn-lg rounded-pill px-5 shadow-md" ng-click="enterDashboard()">
+            <i class="fa-solid fa-chart-line me-2"></i> Enter LedgerVoice Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

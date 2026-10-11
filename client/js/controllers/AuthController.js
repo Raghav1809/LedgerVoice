@@ -2,7 +2,7 @@
  * AuthController.js - Authentication Controller for LedgerVoice
  * Manages user login, registration, validation, password toggles, and session handling.
  */
-app.controller('AuthController', ['$scope', '$location', 'authService', 'toastService', function($scope, $location, authService, toastService) {
+app.controller('AuthController', ['$scope', '$location', 'authService', 'onboardingService', 'toastService', function($scope, $location, authService, onboardingService, toastService) {
   $scope.isLoginMode = $location.path() === '/login';
   $scope.isLoading = false;
   $scope.errorMessage = '';
@@ -56,7 +56,16 @@ app.controller('AuthController', ['$scope', '$location', 'authService', 'toastSe
     authService.login($scope.loginData).then(function(res) {
       var user = authService.getUser() || { username: $scope.loginData.username };
       toastService.success('Welcome back, ' + (user.first_name || user.username || 'User') + '!');
-      $location.path('/dashboard');
+      
+      onboardingService.loadProgress().then(function(pRes) {
+        if (pRes.data && pRes.data.voice_onboarding_completed) {
+          $location.path('/dashboard');
+        } else {
+          $location.path('/onboarding');
+        }
+      }).catch(function() {
+        $location.path('/onboarding');
+      });
     }).catch(function(err) {
       var msg = 'Invalid username or password. Please try again.';
       if (err.data) {
@@ -92,7 +101,7 @@ app.controller('AuthController', ['$scope', '$location', 'authService', 'toastSe
     $scope.isLoading = true;
     authService.register($scope.regData).then(function(res) {
       toastService.success('Account created successfully! Welcome to LedgerVoice.');
-      $location.path('/dashboard');
+      $location.path('/onboarding');
     }).catch(function(err) {
       var msg = 'Registration failed. Please check your information.';
       if (err.data) {

@@ -41,6 +41,34 @@
   <!-- ── Main Content ──────────────────────────────────────── -->
   <div ng-if="!isLoading">
 
+    <!-- ── Voice Academy Banner ────────────────────────────── -->
+    <div class="glass-card p-3 p-md-4 mb-4 border-0 shadow-sm anim-fade-up"
+         style="background: linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(124,58,237,0.06) 100%); border-radius: var(--r-md); border-left: 4px solid var(--primary) !important;"
+         ng-if="!onboardingProgress.voice_onboarding_completed">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="d-none d-sm-flex align-items-center justify-content-center rounded-circle"
+               style="width: 50px; height: 50px; background: rgba(37,99,235,0.12); color: var(--primary);">
+            <i class="fa-solid fa-graduation-cap fa-lg"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-primary text-white" style="font-size: 0.7rem;">RECOMMENDED</span>
+              <span class="fw-bold text-dark">Calibrate Your Voice for LedgerVoice</span>
+            </div>
+            <p class="text-muted small mb-0">
+              Master 4 quick training levels covering single sales, multi-item commands (e.g., <em>"half kg wheat"</em>), and credit entries.
+            </p>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <a href="#!/onboarding" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm">
+            <i class="fa-solid fa-microphone me-1"></i> Start Academy
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- ── KPI Metric Cards ───────────────────────────────── -->
     <div class="row g-3 mb-4">
 
@@ -165,7 +193,7 @@
             </span>
           </div>
           <div class="recovery-bar-wrap mb-3">
-            <div class="recovery-bar-fill" style="width:{{ getRecoveryPercentage() }}%"></div>
+            <div class="recovery-bar-fill" ng-style="{ 'width': getRecoveryPercentage() + '%' }"></div>
           </div>
           <div class="d-flex justify-content-between small">
             <span class="text-muted">

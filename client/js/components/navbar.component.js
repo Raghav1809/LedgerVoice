@@ -28,7 +28,18 @@ app.component('appNavbar', {
         <div class="collapse navbar-collapse" id="navMenu">
           <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-1" ng-if="$ctrl.isAuthenticated">
 
-            <li class="nav-item">
+            <!-- When onboarding is NOT completed: Lock links & emphasize calibration -->
+            <li class="nav-item" ng-if="!$ctrl.onboardingCompleted">
+              <a class="nav-link nav-link-custom active fw-bold text-primary"
+                 href="#!/onboarding">
+                <i class="fa-solid fa-shield-halved me-1 text-primary"></i>
+                Voice Calibration (Required)
+                <span class="badge bg-warning text-dark ms-1">Action Needed</span>
+              </a>
+            </li>
+
+            <!-- When onboarding is completed: Show all protected modules -->
+            <li class="nav-item" ng-if="$ctrl.onboardingCompleted">
               <a class="nav-link nav-link-custom" 
                  ng-class="{'active': $ctrl.isActive('/dashboard')}"
                  href="#!/dashboard">
@@ -37,7 +48,7 @@ app.component('appNavbar', {
               </a>
             </li>
 
-            <li class="nav-item">
+            <li class="nav-item" ng-if="$ctrl.onboardingCompleted">
               <a class="nav-link nav-link-custom"
                  ng-class="{'active': $ctrl.isActive('/voice')}"
                  href="#!/voice">
@@ -46,7 +57,7 @@ app.component('appNavbar', {
               </a>
             </li>
 
-            <li class="nav-item">
+            <li class="nav-item" ng-if="$ctrl.onboardingCompleted">
               <a class="nav-link nav-link-custom"
                  ng-class="{'active': $ctrl.isActive('/transactions')}"
                  href="#!/transactions">
@@ -55,7 +66,7 @@ app.component('appNavbar', {
               </a>
             </li>
 
-            <li class="nav-item">
+            <li class="nav-item" ng-if="$ctrl.onboardingCompleted">
               <a class="nav-link nav-link-custom"
                  ng-class="{'active': $ctrl.isActive('/inventory')}"
                  href="#!/inventory">
@@ -64,12 +75,22 @@ app.component('appNavbar', {
               </a>
             </li>
 
-            <li class="nav-item">
+            <li class="nav-item" ng-if="$ctrl.onboardingCompleted">
               <a class="nav-link nav-link-custom"
                  ng-class="{'active': $ctrl.isActive('/reminders')}"
                  href="#!/reminders">
                 <i class="fa-solid fa-bell me-1" style="font-size:0.85rem;"></i>
                 Reminders
+              </a>
+            </li>
+
+            <li class="nav-item" ng-if="$ctrl.onboardingCompleted">
+              <a class="nav-link nav-link-custom"
+                 ng-class="{'active': $ctrl.isActive('/onboarding')}"
+                 href="#!/onboarding?repeat=true"
+                 title="Recalibrate Voice">
+                <i class="fa-solid fa-graduation-cap me-1" style="font-size:0.85rem;"></i>
+                Recalibrate
               </a>
             </li>
 
@@ -127,28 +148,34 @@ app.component('appNavbar', {
       </div>
     </nav>
   `,
-  controller: ['$location', '$rootScope', 'authService', 'toastService',
-    function($location, $rootScope, authService, toastService) {
+  controller: ['$location', '$rootScope', 'authService', 'onboardingService', 'toastService',
+    function($location, $rootScope, authService, onboardingService, toastService) {
       var ctrl = this;
+      ctrl.onboardingCompleted = false;
 
-      /**
-       * JWT Auth State: isAuthenticated and user data are synced
-       * reactively via $rootScope 'auth:changed' broadcasts.
-       * The jwtInterceptor in app.js attaches the Bearer token to
-       * every /api/ request — so this state drives what the user sees.
-       */
       ctrl.updateAuthState = function() {
         ctrl.isAuthenticated = authService.isAuthenticated();
         ctrl.user = authService.getUser() || {};
+
+        if (ctrl.isAuthenticated) {
+          onboardingService.loadProgress().then(function(res) {
+            ctrl.onboardingCompleted = !!(res.data && res.data.voice_onboarding_completed);
+          }).catch(function() {
+            ctrl.onboardingCompleted = false;
+          });
+        }
       };
 
       ctrl.$onInit = function() {
         ctrl.updateAuthState();
       };
 
-      // React to login / logout / register events broadcast from authService
       $rootScope.$on('auth:changed', function(event, user) {
         ctrl.updateAuthState();
+      });
+
+      $rootScope.$on('onboarding:updated', function(event, payload) {
+        ctrl.onboardingCompleted = !!(payload && payload.voice_onboarding_completed);
       });
 
       ctrl.isActive = function(viewLocation) {

@@ -1,11 +1,12 @@
 /**
  * DashboardController.js - Controls the Dashboard view & integrates with transaction modules
  */
-app.controller('DashboardController', ['$scope', '$location', '$window', 'insightService', 'reminderService', 'toastService', function($scope, $location, $window, insightService, reminderService, toastService) {
+app.controller('DashboardController', ['$scope', '$location', '$window', 'insightService', 'reminderService', 'onboardingService', 'toastService', function($scope, $location, $window, insightService, reminderService, onboardingService, toastService) {
   $scope.isLoading = true;
   $scope.summary = {};
   $scope.recentReminders = [];
   $scope.selectedReceiptTx = null;
+  $scope.onboardingProgress = null;
 
   $scope.loadDashboardData = function() {
     $scope.isLoading = true;
@@ -17,6 +18,14 @@ app.controller('DashboardController', ['$scope', '$location', '$window', 'insigh
     }).finally(function() {
       $scope.isLoading = false;
     });
+
+    if (onboardingService && typeof onboardingService.loadProgress === 'function') {
+      onboardingService.loadProgress().then(function(res) {
+        $scope.onboardingProgress = res.data;
+      }).catch(function(e) {
+        console.warn('Onboarding progress check:', e);
+      });
+    }
 
     if (reminderService && typeof reminderService.getAll === 'function') {
       reminderService.getAll({ category: 'today' }).then(function(res) {

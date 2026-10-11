@@ -12,6 +12,12 @@ class UserSettings(models.Model):
     sound_effects = models.BooleanField(default=True)
     upi_link = models.CharField(max_length=500, blank=True, null=True)
     upi_id = models.CharField(max_length=100, blank=True, null=True)
+
+    # Voice Onboarding & Calibration fields
+    voice_onboarding_completed = models.BooleanField(default=False)
+    voice_onboarding_level = models.IntegerField(default=0)  # 0=not started, 1-4=completed levels
+    voice_onboarding_data = models.JSONField(blank=True, null=True, default=None)  # Per-exercise progress
+
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

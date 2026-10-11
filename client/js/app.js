@@ -39,6 +39,30 @@ app.factory('jwtInterceptor', ['$q', '$location', 'toastService', function($q, $
 }]);
 
 var authResolve = {
+  auth: ['$q', '$location', '$http', 'authService', 'API_BASE_URL', function($q, $location, $http, authService, API_BASE_URL) {
+    if (!authService.isAuthenticated()) {
+      $location.path('/login').replace();
+      return $q.reject('AUTH_REQUIRED');
+    }
+    // Verify onboarding completion status from backend before allowing access to protected views
+    return $http.get(API_BASE_URL + '/voice/onboarding-progress/').then(function(res) {
+      var isCompleted = res.data && res.data.voice_onboarding_completed;
+      if (!isCompleted) {
+        $location.path('/onboarding').replace();
+        return $q.reject('ONBOARDING_REQUIRED');
+      }
+      return true;
+    }).catch(function(err) {
+      if (err === 'ONBOARDING_REQUIRED') {
+        return $q.reject(err);
+      }
+      $location.path('/onboarding').replace();
+      return $q.reject('ONBOARDING_REQUIRED');
+    });
+  }]
+};
+
+var onboardingResolve = {
   auth: ['$q', '$location', 'authService', function($q, $location, authService) {
     if (!authService.isAuthenticated()) {
       $location.path('/login').replace();
@@ -71,6 +95,7 @@ app.config(['$routeProvider', '$httpProvider', function ($routeProvider, $httpPr
   $routeProvider
     .when('/dashboard',    { templateUrl: 'views/dashboard.html',    controller: 'DashboardController', resolve: authResolve })
     .when('/voice',        { templateUrl: 'views/voice.html',        controller: 'VoiceInputController', resolve: authResolve })
+    .when('/onboarding',   { templateUrl: 'views/onboarding.html',   controller: 'OnboardingController', resolve: onboardingResolve })
     .when('/transactions', { templateUrl: 'views/transactions.html', controller: 'TransactionController', resolve: authResolve })
     .when('/inventory',    { templateUrl: 'views/inventory.html',    controller: 'InventoryController', resolve: authResolve })
     .when('/reminders',    { templateUrl: 'views/reminders.html',    controller: 'ReminderController', resolve: authResolve })
@@ -97,6 +122,9 @@ app.run(['$rootScope', '$location', 'authService', 'toastService', function($roo
     if (rejection === 'AUTH_REQUIRED') {
       toastService.warning('Please sign in to access LedgerVoice.');
       $location.path('/login').replace();
+    } else if (rejection === 'ONBOARDING_REQUIRED') {
+      toastService.info('Please complete voice calibration to unlock LedgerVoice.');
+      $location.path('/onboarding').replace();
     }
   });
 
