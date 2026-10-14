@@ -3,7 +3,7 @@
  * Manages the 6 essential calibration exercises, practice validation API calls,
  * and progress persistence via the backend.
  */
-app.factory('onboardingService', ['apiService', '$q', function(apiService, $q) {
+app.factory('onboardingService', ['apiService', '$q', function (apiService, $q) {
 
   // ═══════════════════════════════════════════════════════════
   // EXACTLY 4 ESSENTIAL CALIBRATION COMMANDS
@@ -29,46 +29,48 @@ app.factory('onboardingService', ['apiService', '$q', function(apiService, $q) {
       id: 'CMD_2',
       number: 2,
       title: 'Fractional Quantity',
-      phrase: 'Sold half kg wheat for 50 rupees.',
-      hint: 'Speak fractional quantities naturally: "half kg wheat for 50 rupees".',
+      phrase: 'Sold half litre milk for 30 rupees.',
+      hint: 'Speak fractional quantities naturally: "half litre milk for 30 rupees".',
       expected: {
         transaction_type: 'sale',
-        amount: 50,
+        amount: 30,
         items: [
-          { name: 'Wheat', qty: 0.5, unit: 'kg', amount: 50 }
+          { name: 'Milk', qty: 0.5, unit: 'litre', amount: 30 }
         ]
       },
       icon: 'fa-scale-balanced'
     },
+
     {
       id: 'CMD_3',
       number: 3,
       title: 'Two-Item Command',
-      phrase: 'Items list: 5 kg wheat 200 rupees, 2 liter oil for 300 rupees.',
-      hint: 'Speak both items independently: Wheat (5 kg, ₹200) and Oil (2 liters, ₹300).',
+      phrase: 'Sold 2 kg rice for 100 rupees and 1 litre milk for 30 rupees.',
+      hint: 'Speak both items clearly: Rice (2 kg, ₹100) and Milk (1 litre, ₹30).',
       expected: {
-        amount: 500,
+        transaction_type: 'sale',
+        amount: 130,
         items: [
-          { name: 'Wheat', qty: 5, unit: 'kg', amount: 200 },
-          { name: 'Oil', qty: 2, unit: 'litre', amount: 300 }
+          { name: 'Rice', qty: 2, unit: 'kg', amount: 100 },
+          { name: 'Milk', qty: 1, unit: 'litre', amount: 30 }
         ]
       },
       icon: 'fa-list-check'
     },
     {
+
       id: 'CMD_4',
       number: 4,
-      title: 'Credit Transaction with a Deadline',
-      phrase: 'Ramesh bought 2 kg rice for 200 rupees on credit, payable by 20 October 2026.',
-      hint: 'Customer (Ramesh), Rice (2 kg, ₹200), credit status, and due date (20 October 2026).',
+      title: 'Transaction with a Deadline',
+      phrase: 'Amit bought 1 kg sugar for 50 rupees, payable by 25 October 2026.',
+      hint: 'Customer (Amit), Sugar (1 kg, ₹50), and due date (25 October 2026).',
       expected: {
-        customer_name: 'Ramesh',
+        customer_name: 'Amit',
         transaction_type: 'sale',
-        payment_status: 'credit',
-        amount: 200,
-        due_date: '2026-10-20',
+        amount: 50,
+        due_date: '2026-10-25',
         items: [
-          { name: 'Rice', qty: 2, unit: 'kg', amount: 200 }
+          { name: 'Sugar', qty: 1, unit: 'kg', amount: 50 }
         ]
       },
       icon: 'fa-calendar-check'
@@ -81,29 +83,29 @@ app.factory('onboardingService', ['apiService', '$q', function(apiService, $q) {
     EXERCISES: EXERCISES,
     TOTAL_EXERCISES: TOTAL_EXERCISES,
 
-    getAllExercises: function() {
+    getAllExercises: function () {
       return EXERCISES;
     },
 
-    getExerciseByNumber: function(num) {
+    getExerciseByNumber: function (num) {
       return EXERCISES[num - 1] || null;
     },
 
-    isCompleted: function(progressData) {
+    isCompleted: function (progressData) {
       if (!progressData) return false;
       return !!progressData.voice_onboarding_completed;
     },
 
     // Backend API calls
-    loadProgress: function() {
+    loadProgress: function () {
       return apiService.get('/voice/onboarding-progress/');
     },
 
-    saveProgress: function(data) {
+    saveProgress: function (data) {
       return apiService.put('/voice/onboarding-progress/', data);
     },
 
-    validatePractice: function(transcript, expected) {
+    validatePractice: function (transcript, expected) {
       return apiService.post('/voice/validate-practice/', {
         transcript: transcript,
         expected: expected
