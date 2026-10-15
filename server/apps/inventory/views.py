@@ -153,7 +153,7 @@ class InventoryViewSet(BusinessDataIsolationMixin, viewsets.ModelViewSet):
                 is_active=True
             ).first()
 
-            if not item or (business and item.business_id != business.id):
+            if not item or (business and item.business_id != business.id) or (not business and item.user_id != request.user.id):
                 return Response({'error': 'Inventory item not found or unauthorized.'}, status=status.HTTP_404_NOT_FOUND)
 
             qty_change = data['quantity']

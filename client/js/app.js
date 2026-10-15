@@ -2,19 +2,44 @@ var app = angular.module('ledgerVoiceApp', ['ngRoute']);
 
 app.constant('API_BASE_URL', '/api');
 
+// Diagnostic Logging & Per-Tab Identifier for Multi-Account Isolation Tracking
+if (!window.__lv_tab_id) {
+  window.__lv_tab_id = 'tab_' + Math.random().toString(36).substring(2, 7) + '_' + Date.now().toString().slice(-4);
+}
+
+window.__lv_diagLog = function(event, details) {
+  var hasToken = !!sessionStorage.getItem('lv_token');
+  var hasRefresh = !!sessionStorage.getItem('lv_refresh');
+  var userJson = sessionStorage.getItem('lv_user');
+  var username = 'anonymous';
+  try {
+    if (userJson) {
+      var u = JSON.parse(userJson);
+      username = u.username || u.first_name || 'unknown';
+    }
+  } catch(e) {}
+  var detailStr = details ? ' | details=' + JSON.stringify(details) : '';
+  console.log('[DIAG][' + window.__lv_tab_id + '][' + event + '] storage=sessionStorage hasToken=' + hasToken + ' hasRefresh=' + hasRefresh + ' user=' + username + detailStr);
+};
+
 // JWT HTTP Request/Response Interceptor
 app.factory('jwtInterceptor', ['$q', '$location', 'toastService', function($q, $location, toastService) {
   return {
     request: function(config) {
-      var token = localStorage.getItem('lv_token');
-      var loginTime = parseInt(localStorage.getItem('lv_login_timestamp') || '0', 10);
+      var token = sessionStorage.getItem('lv_token');
+      var loginTime = parseInt(sessionStorage.getItem('lv_login_timestamp') || '0', 10);
       var isExpired = loginTime > 0 && (Date.now() - loginTime >= 10 * 60 * 60 * 1000);
 
+      if (config.url && config.url.indexOf('/api/') !== -1 && config.url.indexOf('/api/auth/login/') === -1) {
+        window.__lv_diagLog('jwtInterceptor:request', { url: config.url, isExpired: isExpired });
+      }
+
       if (isExpired && config.url && config.url.indexOf('/api/auth/') === -1) {
-        localStorage.removeItem('lv_token');
-        localStorage.removeItem('lv_refresh');
-        localStorage.removeItem('lv_user');
-        localStorage.removeItem('lv_login_timestamp');
+        window.__lv_diagLog('jwtInterceptor:sessionExpired', { url: config.url });
+        sessionStorage.removeItem('lv_token');
+        sessionStorage.removeItem('lv_refresh');
+        sessionStorage.removeItem('lv_user');
+        sessionStorage.removeItem('lv_login_timestamp');
         $location.path('/login');
         return $q.reject('Session expired');
       }
@@ -27,10 +52,14 @@ app.factory('jwtInterceptor', ['$q', '$location', 'toastService', function($q, $
     },
     responseError: function(rejection) {
       if (rejection.status === 401 && rejection.config && rejection.config.url.indexOf('/api/auth/login/') === -1) {
-        localStorage.removeItem('lv_token');
-        localStorage.removeItem('lv_refresh');
-        localStorage.removeItem('lv_user');
-        localStorage.removeItem('lv_login_timestamp');
+        window.__lv_diagLog('jwtInterceptor:401_unauthorized', {
+          url: rejection.config ? rejection.config.url : 'unknown',
+          status: rejection.status
+        });
+        sessionStorage.removeItem('lv_token');
+        sessionStorage.removeItem('lv_refresh');
+        sessionStorage.removeItem('lv_user');
+        sessionStorage.removeItem('lv_login_timestamp');
         $location.path('/login');
       }
       return $q.reject(rejection);
@@ -83,8 +112,8 @@ var guestResolve = {
 };
 
 function defaultRedirect() {
-  var token = localStorage.getItem('lv_token');
-  var ts = parseInt(localStorage.getItem('lv_login_timestamp') || '0', 10);
+  var token = sessionStorage.getItem('lv_token');
+  var ts = parseInt(sessionStorage.getItem('lv_login_timestamp') || '0', 10);
   var valid = token && token !== 'null' && token !== 'undefined' && ts && (Date.now() - ts < 10 * 60 * 60 * 1000);
   return valid ? '/dashboard' : '/login';
 }

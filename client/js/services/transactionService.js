@@ -7,7 +7,7 @@ app.factory('transactionService', ['$q', 'apiService', function($q, apiService) 
 
   function getLocalBackup() {
     try {
-      var stored = localStorage.getItem(STORAGE_KEY);
+      var stored = sessionStorage.getItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
@@ -15,7 +15,7 @@ app.factory('transactionService', ['$q', 'apiService', function($q, apiService) 
   }
 
   function saveLocalBackup(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   }
 
   return {

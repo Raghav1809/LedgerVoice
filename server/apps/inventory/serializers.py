@@ -7,6 +7,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
     purchase_price = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0.00)
     selling_price = serializers.DecimalField(source='price', max_digits=12, decimal_places=2, required=False)
     is_low_stock = serializers.ReadOnlyField()
+    is_active = serializers.BooleanField(default=True)
 
     class Meta:
         model = InventoryItem

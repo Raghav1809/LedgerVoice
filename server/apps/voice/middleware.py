@@ -37,19 +37,19 @@ class VoiceOnboardingGateMiddleware:
             is_exempt = any(path.startswith(prefix) for prefix in self.EXEMPT_PREFIXES)
 
             if not is_exempt:
-                user = getattr(request, 'user', None)
+                user = None
+                try:
+                    auth_header = self.jwt_authenticator.get_header(request)
+                    if auth_header:
+                        raw_token = self.jwt_authenticator.get_raw_token(auth_header)
+                        if raw_token:
+                            validated_token = self.jwt_authenticator.get_validated_token(raw_token)
+                            user = self.jwt_authenticator.get_user(validated_token)
+                except Exception:
+                    user = None
 
-                # If not authenticated yet via session, try extracting from JWT Bearer token
-                if not (user and user.is_authenticated):
-                    try:
-                        auth_header = self.jwt_authenticator.get_header(request)
-                        if auth_header:
-                            raw_token = self.jwt_authenticator.get_raw_token(auth_header)
-                            if raw_token:
-                                validated_token = self.jwt_authenticator.get_validated_token(raw_token)
-                                user = self.jwt_authenticator.get_user(validated_token)
-                    except Exception:
-                        user = None
+                if not user:
+                    user = getattr(request, 'user', None)
 
                 # If user is authenticated, enforce onboarding completion
                 if user and user.is_authenticated:

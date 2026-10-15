@@ -1,4 +1,4 @@
-app.factory('inventoryService', ['apiService', '$q', function(apiService, $q) {
+app.factory('inventoryService', ['apiService', '$q', '$rootScope', function(apiService, $q, $rootScope) {
   var cachedItems = [];
 
   function updateCache(items) {
@@ -8,8 +8,9 @@ app.factory('inventoryService', ['apiService', '$q', function(apiService, $q) {
   }
 
   function refreshCache() {
-    var token = localStorage.getItem('lv_token');
+    var token = sessionStorage.getItem('lv_token');
     if (!token) {
+      cachedItems = [];
       return $q.resolve(cachedItems);
     }
     return apiService.get('/inventory/').then(function(res) {
@@ -22,9 +23,18 @@ app.factory('inventoryService', ['apiService', '$q', function(apiService, $q) {
   }
 
   // Pre-fetch cache if logged in
-  if (localStorage.getItem('lv_token')) {
+  if (sessionStorage.getItem('lv_token')) {
     refreshCache();
   }
+
+  // Clear or refresh cache on auth change
+  $rootScope.$on('auth:changed', function(event, user) {
+    if (!user) {
+      cachedItems = [];
+    } else {
+      refreshCache();
+    }
+  });
 
   return {
     refreshCache: refreshCache,

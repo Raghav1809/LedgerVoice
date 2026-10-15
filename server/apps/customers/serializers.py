@@ -6,6 +6,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     total_credit = serializers.ReadOnlyField()
     total_payments = serializers.ReadOnlyField()
     net_balance = serializers.ReadOnlyField()
+    is_active = serializers.BooleanField(default=True)
 
     class Meta:
         model = Customer
